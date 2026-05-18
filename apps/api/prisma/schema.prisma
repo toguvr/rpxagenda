@@ -1,0 +1,77 @@
+// Schema RPX Expert
+// Fonte da verdade técnica: CLAUDE.md §5 e §6.
+// Convenção de IDs: cuid v1 (default do Prisma) — ver SESSION-01-REPORT.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  PROFESSIONAL
+  PATIENT
+}
+
+model Unit {
+  id        String   @id @default(cuid())
+  name      String
+  timezone  String   @default("America/Sao_Paulo")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@map("units")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  role         UserRole
+  unitId       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  unit          Unit           @relation(fields: [unitId], references: [id])
+  refreshTokens RefreshToken[]
+
+  @@index([unitId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
