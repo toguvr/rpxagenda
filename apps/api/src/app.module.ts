@@ -4,7 +4,6 @@ import { ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { AppConfigModule } from './config/config.module';
 import type { Env } from './config/env.schema';
-import { TypedConfigService } from './config/typed-config.service';
 import { buildLoggerOptions } from './common/logger/logger.config';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaModule } from './prisma/prisma.module';
@@ -32,12 +31,10 @@ import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.int
     HealthModule,
   ],
   providers: [
-    TypedConfigService,
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_INTERCEPTOR, useClass: UnitScopeInterceptor },
   ],
-  exports: [TypedConfigService],
 })
 export class AppModule {}

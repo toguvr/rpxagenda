@@ -4,13 +4,17 @@ const minSecret = 32;
 
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(3000),
+  PORT: z.coerce.number().int().positive().default(3333),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 
   DATABASE_URL: z.string().url('DATABASE_URL deve ser uma URL válida'),
 
-  JWT_ACCESS_SECRET: z.string().min(minSecret, `JWT_ACCESS_SECRET deve ter pelo menos ${minSecret} caracteres`),
-  JWT_REFRESH_SECRET: z.string().min(minSecret, `JWT_REFRESH_SECRET deve ter pelo menos ${minSecret} caracteres`),
+  JWT_ACCESS_SECRET: z
+    .string()
+    .min(minSecret, `JWT_ACCESS_SECRET deve ter pelo menos ${minSecret} caracteres`),
+  JWT_REFRESH_SECRET: z
+    .string()
+    .min(minSecret, `JWT_REFRESH_SECRET deve ter pelo menos ${minSecret} caracteres`),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
