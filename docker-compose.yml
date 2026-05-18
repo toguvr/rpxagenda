@@ -1,14 +1,15 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: rpx_postgres
+    container_name: rpx_expert_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: rpx
       POSTGRES_PASSWORD: rpx
       POSTGRES_DB: rpx_expert
     ports:
-      - '5432:5432'
+      # Mapeado para 5433 no host porque a maioria das máquinas dev já tem Postgres local em 5432.
+      - '5433:5432'
     volumes:
       - rpx_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -19,7 +20,7 @@ services:
 
   adminer:
     image: adminer:latest
-    container_name: rpx_adminer
+    container_name: rpx_expert_adminer
     restart: unless-stopped
     ports:
       - '8080:8080'

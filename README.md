@@ -43,7 +43,7 @@ Gestão por **pnpm workspaces** + **Turborepo**.
 # 1. Instalar dependências
 pnpm install
 
-# 2. Subir Postgres (porta 5432) e Adminer (porta 8080)
+# 2. Subir Postgres (porta 5433 — 5432 fica para o Postgres local) e Adminer (porta 8080)
 docker compose up -d
 
 # 3. Configurar variáveis da API
@@ -74,7 +74,7 @@ Ver [`apps/api/.env.example`](apps/api/.env.example). Resumo:
 | ----------------------- | ------------------------------------------------------ | ------------------------------- |
 | `NODE_ENV`              | `development`                                          | Ambiente                        |
 | `PORT`                  | `3000`                                                 | Porta HTTP                      |
-| `DATABASE_URL`          | `postgresql://rpx:rpx@localhost:5432/rpx_expert`       | Postgres                        |
+| `DATABASE_URL`          | `postgresql://rpx:rpx@localhost:5433/rpx_expert`       | Postgres                        |
 | `JWT_ACCESS_SECRET`     | —                                                      | Segredo do access token (≥32)   |
 | `JWT_REFRESH_SECRET`    | —                                                      | Segredo do refresh token (≥32)  |
 | `JWT_ACCESS_TTL`        | `15m`                                                  | TTL do access                   |
