@@ -3,7 +3,9 @@
     "allow": [
       "Bash(psql --version)",
       "Bash(git init *)",
-      "Bash(mkdir -p /Users/augustotelles/projetos/rpxagenda/apps/api /Users/augustotelles/projetos/rpxagenda/apps/mobile /Users/augustotelles/projetos/rpxagenda/apps/admin /Users/augustotelles/projetos/rpxagenda/packages/shared)"
+      "Bash(mkdir -p /Users/augustotelles/projetos/rpxagenda/apps/api /Users/augustotelles/projetos/rpxagenda/apps/mobile /Users/augustotelles/projetos/rpxagenda/apps/admin /Users/augustotelles/projetos/rpxagenda/packages/shared)",
+      "Bash(pnpm approve-builds *)",
+      "Bash(docker port *)"
     ],
     "additionalDirectories": [
       "/Users/augustotelles/projetos/rpxagenda/apps"
