@@ -14,7 +14,10 @@
       "Bash(ps -p 51505 -o pid,ppid,user,command)",
       "Bash(kill 43769)",
       "Bash(curl -sf -o /dev/null -w \"%{http_code}\" http://localhost:3333/health)",
-      "Bash(curl -s -w '\\\\nHTTP_STATUS=%{http_code}\\\\n' -X POST http://localhost:3333/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@rpxexpert.local\",\"password\":\"senhaErradaQualquer\"}')"
+      "Bash(curl -s -w '\\\\nHTTP_STATUS=%{http_code}\\\\n' -X POST http://localhost:3333/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@rpxexpert.local\",\"password\":\"senhaErradaQualquer\"}')",
+      "Bash(pnpm --filter @rpx/api prisma migrate status)",
+      "Bash(pnpm --filter @rpx/api db:seed)",
+      "Bash(pnpm --filter @rpx/api test)"
     ],
     "additionalDirectories": ["/Users/augustotelles/projetos/rpxagenda/apps"]
   }
