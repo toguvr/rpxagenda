@@ -1,0 +1,13 @@
+{
+  "name": "@rpx/admin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Painel admin (Next.js App Router). Placeholder — implementação a partir da Fase 1.",
+  "scripts": {
+    "dev": "echo 'admin: ainda não implementado (Fase 1+)'",
+    "build": "echo 'admin: ainda não implementado (Fase 1+)'",
+    "lint": "echo 'admin: ainda não implementado'",
+    "typecheck": "echo 'admin: ainda não implementado'",
+    "test": "echo 'admin: ainda não implementado'"
+  }
+}

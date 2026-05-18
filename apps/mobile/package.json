@@ -1,0 +1,13 @@
+{
+  "name": "@rpx/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "App do paciente (Expo). Placeholder — implementação a partir da Fase 3.",
+  "scripts": {
+    "dev": "echo 'mobile: ainda não implementado (Fase 3+)'",
+    "build": "echo 'mobile: ainda não implementado (Fase 3+)'",
+    "lint": "echo 'mobile: ainda não implementado'",
+    "typecheck": "echo 'mobile: ainda não implementado'",
+    "test": "echo 'mobile: ainda não implementado'"
+  }
+}
