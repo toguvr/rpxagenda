@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(psql --version)",
+      "Bash(git init *)",
+      "Bash(mkdir -p /Users/augustotelles/projetos/rpxagenda/apps/api /Users/augustotelles/projetos/rpxagenda/apps/mobile /Users/augustotelles/projetos/rpxagenda/apps/admin /Users/augustotelles/projetos/rpxagenda/packages/shared)"
+    ],
+    "additionalDirectories": [
+      "/Users/augustotelles/projetos/rpxagenda/apps"
+    ]
+  }
+}
