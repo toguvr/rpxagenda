@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { UserRole } from '../enums.js';
-import { emailSchema, passwordSchema, cuidSchema } from './common.js';
+import { UserRole } from '../enums';
+import { emailSchema, passwordSchema, cuidSchema } from './common';
 
 export const loginRequestSchema = z.object({
   email: emailSchema,
