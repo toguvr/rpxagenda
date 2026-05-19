@@ -30,6 +30,20 @@ enum PlanType {
   SUBSCRIPTION
 }
 
+enum PlanStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  EXPIRED
+  CANCELLED
+}
+
+enum ScheduleExceptionType {
+  CLOSED
+  CUSTOM
+}
+
 model Unit {
   id        String   @id @default(cuid())
   name      String
@@ -37,11 +51,14 @@ model Unit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users         User[]
-  services      Service[]
-  equipments    Equipment[]
-  professionals Professional[]
-  patients      Patient[]
+  users              User[]
+  services           Service[]
+  equipments         Equipment[]
+  professionals      Professional[]
+  patients           Patient[]
+  businessHours      BusinessHours[]
+  scheduleExceptions ScheduleException[]
+  plans              Plan[]
 
   @@map("units")
 }
@@ -116,6 +133,7 @@ model Service {
   unit               Unit                  @relation(fields: [unitId], references: [id])
   equipments         ServiceEquipment[]
   professionalLinks  ProfessionalService[]
+  plans              Plan[]
 
   @@unique([unitId, name])
   @@index([unitId, active])
@@ -204,6 +222,7 @@ model Patient {
   unit    Unit            @relation(fields: [unitId], references: [id])
   user    User?           @relation(fields: [userId], references: [id])
   invites PatientInvite[]
+  plans   Plan[]
 
   @@unique([unitId, cpf])
   @@index([unitId, fullName])
@@ -223,4 +242,79 @@ model PatientInvite {
   @@index([patientId])
   @@index([expiresAt])
   @@map("patient_invites")
+}
+
+// ----- Grade de horários -----
+
+/// Horário de funcionamento padrão por dia da semana (0=domingo .. 6=sábado).
+/// Uma unidade pode ter múltiplas janelas no mesmo dia (ex: manhã + tarde com fechamento entre).
+model BusinessHours {
+  id        String   @id @default(cuid())
+  unitId    String
+  weekday   Int      // 0=domingo .. 6=sábado
+  opensAt   String   // HH:MM no fuso da unidade
+  closesAt  String   // HH:MM no fuso da unidade
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id])
+
+  @@index([unitId, weekday])
+  @@map("business_hours")
+}
+
+/// Exceções pontuais ao calendário: fechamento total (feriado) ou horário customizado em uma data.
+model ScheduleException {
+  id        String                @id @default(cuid())
+  unitId    String
+  date      DateTime              @db.Date   // dia específico (sem hora), no fuso da unidade
+  type      ScheduleExceptionType
+  opensAt   String?
+  closesAt  String?
+  reason    String?
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id])
+
+  @@unique([unitId, date])
+  @@index([unitId, date])
+  @@map("schedule_exceptions")
+}
+
+// ----- Planos comerciais -----
+
+/// Contrato comercial entre paciente e serviço. Dois tipos:
+/// - PACKAGE: totalSessions + remainingSessions + validUntil
+/// - SUBSCRIPTION: weeklyQuota + (futuramente) pagarmeSubscriptionId + nextBillingAt
+model Plan {
+  id        String     @id @default(cuid())
+  unitId    String
+  patientId String
+  serviceId String
+  type      PlanType
+  status    PlanStatus @default(ACTIVE)
+
+  // PACKAGE
+  totalSessions     Int?
+  remainingSessions Int?
+  validUntil        DateTime?
+
+  // SUBSCRIPTION
+  weeklyQuota           Int?
+  pagarmeSubscriptionId String?
+  nextBillingAt         DateTime?
+
+  startsAt  DateTime @default(now())
+  endsAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unit    Unit    @relation(fields: [unitId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@index([unitId, patientId, status])
+  @@index([unitId, serviceId, status])
+  @@map("plans")
 }
