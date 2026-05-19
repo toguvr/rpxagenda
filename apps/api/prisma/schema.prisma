@@ -1,6 +1,6 @@
 // Schema RPX Expert
 // Fonte da verdade técnica: CLAUDE.md §5 e §6.
-// Convenção de IDs: cuid v1 (default do Prisma) — ver SESSION-01-REPORT.md.
+// Convenção de IDs: cuid v1 (default do Prisma) — CLAUDE.md §7.1.
 
 generator client {
   provider = "prisma-client-js"
@@ -17,6 +17,19 @@ enum UserRole {
   PATIENT
 }
 
+enum ServiceType {
+  FISIO
+  MUSCULACAO
+  RPG
+  PILATES
+  AVALIACAO
+}
+
+enum PlanType {
+  PACKAGE
+  SUBSCRIPTION
+}
+
 model Unit {
   id        String   @id @default(cuid())
   name      String
@@ -24,7 +37,11 @@ model Unit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users User[]
+  users         User[]
+  services      Service[]
+  equipments    Equipment[]
+  professionals Professional[]
+  patients      Patient[]
 
   @@map("units")
 }
@@ -41,6 +58,8 @@ model User {
 
   unit          Unit           @relation(fields: [unitId], references: [id])
   refreshTokens RefreshToken[]
+  professional  Professional?
+  patient       Patient?
 
   @@index([unitId])
   @@map("users")
@@ -74,4 +93,134 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ----- Catálogo -----
+
+model Service {
+  id                       String      @id @default(cuid())
+  unitId                   String
+  name                     String
+  type                     ServiceType
+  durationMinutes          Int
+  slotCapacity             Int         @default(1)
+  cancellationLeadMinutes  Int         @default(240)
+  schedulingLeadMinutes    Int         @default(60)
+  checkInWindowBeforeMin   Int         @default(30)
+  checkInWindowAfterMin    Int         @default(15)
+  acceptedPlanType         PlanType
+  active                   Boolean     @default(true)
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  unit               Unit                  @relation(fields: [unitId], references: [id])
+  equipments         ServiceEquipment[]
+  professionalLinks  ProfessionalService[]
+
+  @@unique([unitId, name])
+  @@index([unitId, active])
+  @@map("services")
+}
+
+model Equipment {
+  id            String   @id @default(cuid())
+  unitId        String
+  name          String
+  totalQuantity Int      @default(1)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  unit     Unit               @relation(fields: [unitId], references: [id])
+  services ServiceEquipment[]
+
+  @@unique([unitId, name])
+  @@index([unitId, active])
+  @@map("equipments")
+}
+
+model ServiceEquipment {
+  serviceId   String
+  equipmentId String
+  createdAt   DateTime @default(now())
+
+  service   Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@id([serviceId, equipmentId])
+  @@index([equipmentId])
+  @@map("service_equipments")
+}
+
+// ----- Pessoas -----
+
+model Professional {
+  id        String   @id @default(cuid())
+  unitId    String
+  userId    String   @unique
+  fullName  String
+  registry  String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unit     Unit                  @relation(fields: [unitId], references: [id])
+  user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services ProfessionalService[]
+
+  @@unique([unitId, registry])
+  @@index([unitId, active])
+  @@map("professionals")
+}
+
+model ProfessionalService {
+  professionalId String
+  serviceId      String
+  createdAt      DateTime @default(now())
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  service      Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([professionalId, serviceId])
+  @@index([serviceId])
+  @@map("professional_services")
+}
+
+model Patient {
+  id                String   @id @default(cuid())
+  unitId            String
+  userId            String?  @unique
+  fullName          String
+  cpf               String
+  birthDate         DateTime
+  phone             String
+  email             String?
+  emergencyContact  String?
+  notes             String?
+  idfaceUserId      String?  @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  unit    Unit            @relation(fields: [unitId], references: [id])
+  user    User?           @relation(fields: [userId], references: [id])
+  invites PatientInvite[]
+
+  @@unique([unitId, cpf])
+  @@index([unitId, fullName])
+  @@map("patients")
+}
+
+model PatientInvite {
+  id         String    @id @default(cuid())
+  patientId  String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  redeemedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([expiresAt])
+  @@map("patient_invites")
 }

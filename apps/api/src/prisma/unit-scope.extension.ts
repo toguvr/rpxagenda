@@ -11,7 +11,10 @@ import { CLS_KEYS } from '../common/cls/cls-keys';
  * email/id sem conhecimento prévio de unidade (login).
  */
 export const UNIT_SCOPED_MODELS = new Set<string>([
-  // Fase 1+: 'Service', 'Equipment', 'Professional', 'Patient'
+  'Service',
+  'Equipment',
+  'Professional',
+  'Patient',
 ]);
 
 const READ_OPERATIONS = new Set([
