@@ -53,6 +53,14 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+enum IdfaceEventOutcome {
+  CHECKIN_OK
+  CHECKIN_OK_REVERTED_NO_SHOW
+  NO_APPOINTMENT_IN_WINDOW
+  PATIENT_NOT_FOUND
+  ALREADY_CHECKED_IN
+}
+
 model Unit {
   id        String   @id @default(cuid())
   name      String
@@ -69,6 +77,7 @@ model Unit {
   scheduleExceptions ScheduleException[]
   plans              Plan[]
   appointments       Appointment[]
+  idfaceEvents       IdfaceEvent[]
 
   @@map("units")
 }
@@ -241,6 +250,7 @@ model Patient {
   invites      PatientInvite[]
   plans        Plan[]
   appointments Appointment[]
+  idfaceEvents IdfaceEvent[]
 
   @@unique([unitId, cpf])
   @@index([unitId, fullName])
@@ -376,6 +386,7 @@ model Appointment {
   plan         Plan                   @relation(fields: [planId], references: [id])
   professional Professional?          @relation(fields: [professionalId], references: [id])
   equipments   AppointmentEquipment[]
+  idfaceEvents IdfaceEvent[]
 
   @@index([unitId, serviceId, startsAt, status])
   @@index([unitId, patientId, startsAt])
@@ -395,4 +406,36 @@ model AppointmentEquipment {
   @@id([appointmentId, equipmentId])
   @@index([equipmentId])
   @@map("appointment_equipments")
+}
+
+// ----- Integração iDFace -----
+
+/// Evento de acesso recebido do equipamento iDFace via webhook.
+/// Idempotente por (deviceId, eventAt, idfaceUserId) — reenvios devolvem o mesmo registro.
+///
+/// `unitId` é resolvido a partir do `Patient.idfaceUserId` no momento do processamento.
+/// Eventos com paciente não encontrado têm `patientId=null` e `unitId` arbitrário
+/// (PREMISSA: nesse cenário gravamos com a primeira unidade encontrada para diagnose;
+/// admin investiga via dashboard. O acesso é negado.).
+model IdfaceEvent {
+  id             String              @id @default(cuid())
+  unitId         String
+  deviceId       String
+  idfaceUserId   String
+  eventAt        DateTime
+  accessGranted  Boolean
+  outcome        IdfaceEventOutcome
+  patientId      String?
+  appointmentId  String?
+  rawPayload     Json
+  createdAt      DateTime            @default(now())
+
+  unit        Unit         @relation(fields: [unitId], references: [id])
+  patient     Patient?     @relation(fields: [patientId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@unique([deviceId, eventAt, idfaceUserId])
+  @@index([unitId, eventAt])
+  @@index([patientId])
+  @@map("idface_events")
 }

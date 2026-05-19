@@ -25,6 +25,14 @@ export const envSchema = z.object({
   SEED_ADMIN_EMAIL: z.string().email().default('admin@rpxexpert.local'),
   SEED_ADMIN_PASSWORD: z.string().min(8).default('RpxAdmin@2026'),
   SEED_ADMIN_FULL_NAME: z.string().min(1).default('Administrador RPX'),
+
+  /**
+   * Segredo compartilhado que o equipamento iDFace envia no header
+   * `X-IDFace-Secret`. Default fraco apenas para dev; em produção o ConfigModule
+   * recusa qualquer valor abaixo de 16 chars na boot (validação adicional em
+   * IdfaceWebhookGuard).
+   */
+  IDFACE_WEBHOOK_SECRET: z.string().min(8).default('dev-idface-secret-trocar-em-prod'),
 });
 
 /**

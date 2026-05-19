@@ -321,6 +321,78 @@ export class AppointmentsService {
     });
   }
 
+  /**
+   * Check-in tolerante para o fluxo do iDFace: se o appointment estiver em
+   * NO_SHOW (foi marcado pelo cron pouco antes do paciente chegar), reverte
+   * o status, devolve o saldo se PACKAGE, e marca CHECKED_IN. Auditado com
+   * action específica para distinguir do checkin normal.
+   * Retorna `{ appointment, revertedNoShow }`.
+   */
+  async checkInAcceptingLateNoShow(
+    id: string,
+    at: Date = new Date(),
+  ): Promise<{ response: AppointmentResponse; revertedNoShow: boolean }> {
+    const userId = this.cls.get<string>(CLS_KEYS.USER_ID) ?? null;
+    const result = await this.prisma.$transaction(async (tx) => {
+      const appt = await tx.appointment.findFirst({
+        where: { id },
+        include: {
+          equipments: true,
+          plan: { select: { id: true, type: true } },
+        },
+      });
+      if (!appt) throw new ResourceNotFoundException('Agendamento');
+
+      // Idempotência: já CHECKED_IN → no-op.
+      if (appt.status === 'CHECKED_IN') {
+        return { row: appt, reverted: false };
+      }
+
+      let reverted = false;
+      if (appt.status === 'NO_SHOW') {
+        // Reverte: devolve saldo do PACKAGE se a sessão tinha sido consumida.
+        if (appt.consumedSession && appt.plan.type === 'PACKAGE') {
+          await tx.plan.update({
+            where: { id: appt.plan.id },
+            data: { remainingSessions: { increment: 1 } },
+          });
+        }
+        reverted = true;
+      } else if (!['SCHEDULED', 'CONFIRMED'].includes(appt.status)) {
+        throw new ResourceConflictException(`Check-in não permitido a partir de ${appt.status}.`);
+      }
+
+      const next = await tx.appointment.update({
+        where: { id },
+        data: {
+          status: 'CHECKED_IN',
+          checkedInAt: at,
+          // Se reverteu de NO_SHOW: já não conta mais como consumido pelo cron.
+          // Como agora a sessão será efetivamente realizada (CHECKED_IN), repõe
+          // consumedSession=true (paciente compareceu, sessão será consumida).
+          consumedSession: true,
+          ...(reverted ? { revertedAt: at, revertedById: userId } : {}),
+        },
+        include: { equipments: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: userId,
+          action: reverted ? 'APPOINTMENT_AUTO_REVERTED_BY_CHECKIN' : 'APPOINTMENT_CHECKED_IN',
+          entity: 'Appointment',
+          entityId: id,
+          before: { status: appt.status, consumedSession: appt.consumedSession },
+          after: { status: 'CHECKED_IN', consumedSession: true },
+        },
+      });
+
+      return { row: next, reverted };
+    });
+
+    return { response: this.toResponse(result.row), revertedNoShow: result.reverted };
+  }
+
   private async transition(
     id: string,
     spec: {

@@ -18,6 +18,7 @@ import { PatientsModule } from './modules/patients/patients.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { PlansModule } from './modules/plans/plans.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
+import { IdfaceModule } from './modules/integrations/idface/idface.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.interceptor';
@@ -47,6 +48,7 @@ import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.int
     SchedulesModule,
     PlansModule,
     AppointmentsModule,
+    IdfaceModule,
     HealthModule,
   ],
   providers: [
