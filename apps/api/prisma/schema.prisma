@@ -134,6 +134,7 @@ model Service {
   equipments         ServiceEquipment[]
   professionalLinks  ProfessionalService[]
   plans              Plan[]
+  businessHours      BusinessHours[]
 
   @@unique([unitId, name])
   @@index([unitId, active])
@@ -246,20 +247,23 @@ model PatientInvite {
 
 // ----- Grade de horários -----
 
-/// Horário de funcionamento padrão por dia da semana (0=domingo .. 6=sábado).
-/// Uma unidade pode ter múltiplas janelas no mesmo dia (ex: manhã + tarde com fechamento entre).
+/// Horário de funcionamento de um serviço por dia da semana (0=domingo .. 6=sábado).
+/// Cada serviço tem sua própria grade — ex: musculação 06:00-22:00, fisio 08:00-18:00.
+/// Múltiplas janelas no mesmo dia para o mesmo serviço (manhã + tarde) são permitidas.
 model BusinessHours {
   id        String   @id @default(cuid())
   unitId    String
+  serviceId String
   weekday   Int      // 0=domingo .. 6=sábado
   opensAt   String   // HH:MM no fuso da unidade
   closesAt  String   // HH:MM no fuso da unidade
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  unit Unit @relation(fields: [unitId], references: [id])
+  unit    Unit    @relation(fields: [unitId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
-  @@index([unitId, weekday])
+  @@index([unitId, serviceId, weekday])
   @@map("business_hours")
 }
 

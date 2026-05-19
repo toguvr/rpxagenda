@@ -40,30 +40,35 @@ import {
 
 @ApiTags('schedules')
 @ApiBearerAuth('access-token')
-@Controller('schedules')
+@Controller()
 export class SchedulesController {
   constructor(private readonly schedules: SchedulesService) {}
 
-  // ---------- BusinessHours ----------
+  // ---------- BusinessHours (por serviço) ----------
 
   @Roles(UserRole.ADMIN)
-  @Post('business-hours')
+  @Post('services/:serviceId/business-hours')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Cria uma janela de funcionamento (weekday + opensAt + closesAt)' })
+  @ApiOperation({ summary: 'Cria uma janela de funcionamento para um serviço específico' })
   @ApiCreatedResponse({ type: BusinessHoursResponseDto })
   createBusinessHours(
+    @Param('serviceId') serviceId: string,
     @Body(new ZodValidationPipe(createBusinessHoursRequestSchema))
     body: CreateBusinessHoursRequest,
   ): Promise<BusinessHoursResponse> {
-    return this.schedules.createBusinessHours(body) as Promise<BusinessHoursResponse>;
+    return this.schedules.createBusinessHours(serviceId, body) as Promise<BusinessHoursResponse>;
   }
 
-  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
-  @Get('business-hours')
-  @ApiOperation({ summary: 'Lista as janelas de funcionamento da unidade' })
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL, UserRole.PATIENT)
+  @Get('services/:serviceId/business-hours')
+  @ApiOperation({ summary: 'Lista as janelas de funcionamento de um serviço' })
   @ApiOkResponse({ type: BusinessHoursResponseDto, isArray: true })
-  listBusinessHours(): Promise<BusinessHoursResponse[]> {
-    return this.schedules.listBusinessHours() as Promise<BusinessHoursResponse[]>;
+  listBusinessHoursForService(
+    @Param('serviceId') serviceId: string,
+  ): Promise<BusinessHoursResponse[]> {
+    return this.schedules.listBusinessHoursForService(serviceId) as Promise<
+      BusinessHoursResponse[]
+    >;
   }
 
   @Roles(UserRole.ADMIN)
@@ -75,12 +80,12 @@ export class SchedulesController {
     return this.schedules.removeBusinessHours(id);
   }
 
-  // ---------- ScheduleException ----------
+  // ---------- ScheduleException (por unidade) ----------
 
   @Roles(UserRole.ADMIN)
-  @Post('exceptions')
+  @Post('schedules/exceptions')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Cria uma exceção pontual (CLOSED ou CUSTOM)' })
+  @ApiOperation({ summary: 'Cria uma exceção pontual de calendário (CLOSED ou CUSTOM)' })
   @ApiCreatedResponse({ type: ScheduleExceptionResponseDto })
   createException(
     @Body(new ZodValidationPipe(createScheduleExceptionRequestSchema))
@@ -90,7 +95,7 @@ export class SchedulesController {
   }
 
   @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
-  @Get('exceptions')
+  @Get('schedules/exceptions')
   @ApiOperation({ summary: 'Lista exceções de calendário da unidade' })
   @ApiOkResponse({ type: ScheduleExceptionResponseDto, isArray: true })
   listExceptions(): Promise<ScheduleExceptionResponse[]> {
@@ -98,7 +103,7 @@ export class SchedulesController {
   }
 
   @Roles(UserRole.ADMIN)
-  @Delete('exceptions/:id')
+  @Delete('schedules/exceptions/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove uma exceção de calendário' })
   @ApiNoContentResponse()
@@ -109,10 +114,10 @@ export class SchedulesController {
   // ---------- slots ----------
 
   @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL, UserRole.PATIENT)
-  @Get('slots')
+  @Get('schedules/slots')
   @ApiOperation({
     summary:
-      'Gera dinamicamente os slots disponíveis para um serviço em uma data (sem considerar lotação — apenas a grade temporal).',
+      'Gera dinamicamente os slots disponíveis para um serviço numa data (BusinessHours do serviço + ScheduleException da unidade).',
   })
   @ApiQuery({ name: 'serviceId', required: true })
   @ApiQuery({ name: 'date', required: true, type: String, example: '2026-05-19' })

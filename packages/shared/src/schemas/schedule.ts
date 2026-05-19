@@ -8,6 +8,10 @@ export const timeOfDaySchema = z
 
 export const weekdaySchema = z.number().int().min(0).max(6);
 
+/**
+ * Cada serviço tem sua própria grade — a rota é POST /services/:serviceId/business-hours,
+ * e serviceId vem da URL, não do body.
+ */
 export const createBusinessHoursRequestSchema = z
   .object({
     weekday: weekdaySchema,
@@ -23,6 +27,7 @@ export type CreateBusinessHoursRequest = z.infer<typeof createBusinessHoursReque
 export const businessHoursResponseSchema = z.object({
   id: cuidSchema,
   unitId: cuidSchema,
+  serviceId: cuidSchema,
   weekday: weekdaySchema,
   opensAt: z.string(),
   closesAt: z.string(),

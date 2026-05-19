@@ -6,13 +6,13 @@ import {
 } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
 import type { CreateBusinessHoursRequest, CreateScheduleExceptionRequest, Slot } from '@rpx/shared';
+import { fromZonedTime } from 'date-fns-tz';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CLS_KEYS } from '../../common/cls/cls-keys';
 import {
   ResourceConflictException,
   ResourceNotFoundException,
 } from '../../common/exceptions/app.exception';
-import { fromZonedTime } from 'date-fns-tz';
 import { generateSlots, type DayWindow } from './slot-generator';
 
 @Injectable()
@@ -22,16 +22,22 @@ export class SchedulesService {
     private readonly cls: ClsService,
   ) {}
 
-  // ---------- BusinessHours ----------
+  // ---------- BusinessHours (por serviço) ----------
 
-  createBusinessHours(data: CreateBusinessHoursRequest): Promise<BusinessHoursRow> {
+  async createBusinessHours(
+    serviceId: string,
+    data: CreateBusinessHoursRequest,
+  ): Promise<BusinessHoursRow> {
+    await this.assertServiceExists(serviceId);
     return this.prisma.scoped.businessHours.create({
-      data: data as unknown as Prisma.BusinessHoursUncheckedCreateInput,
+      data: { ...data, serviceId } as unknown as Prisma.BusinessHoursUncheckedCreateInput,
     });
   }
 
-  listBusinessHours(): Promise<BusinessHoursRow[]> {
+  async listBusinessHoursForService(serviceId: string): Promise<BusinessHoursRow[]> {
+    await this.assertServiceExists(serviceId);
     return this.prisma.scoped.businessHours.findMany({
+      where: { serviceId },
       orderBy: [{ weekday: 'asc' }, { opensAt: 'asc' }],
     });
   }
@@ -42,7 +48,7 @@ export class SchedulesService {
     await this.prisma.scoped.businessHours.delete({ where: { id } });
   }
 
-  // ---------- ScheduleException ----------
+  // ---------- ScheduleException (por unidade) ----------
 
   async createException(data: CreateScheduleExceptionRequest): Promise<ScheduleExceptionRow> {
     try {
@@ -98,14 +104,13 @@ export class SchedulesService {
     if (!service) throw new ResourceNotFoundException('Serviço');
 
     const timezone = await this.unitTimezone();
-    // Resolve o "meio-dia local" da data — fora de DST garante a data correta em qualquer TZ razoável.
     const dateInUnitTz = fromZonedTime(`${dateString}T12:00:00`, timezone);
 
     if (!service.active) {
       return { date: dateString, timezone, serviceId, slots: [] };
     }
 
-    const windows = await this.windowsForDate(dateInUnitTz, timezone);
+    const windows = await this.windowsForService(serviceId, dateInUnitTz, timezone);
     const slots = generateSlots({
       date: dateInUnitTz,
       timezone,
@@ -119,6 +124,14 @@ export class SchedulesService {
 
   // ---------- helpers ----------
 
+  private async assertServiceExists(serviceId: string): Promise<void> {
+    const svc = await this.prisma.scoped.service.findFirst({
+      where: { id: serviceId },
+      select: { id: true },
+    });
+    if (!svc) throw new ResourceNotFoundException('Serviço');
+  }
+
   private async unitTimezone(): Promise<string> {
     const unitId = this.cls.get<string>(CLS_KEYS.UNIT_ID);
     if (!unitId) throw new Error('Unit context missing.');
@@ -130,14 +143,17 @@ export class SchedulesService {
   }
 
   /**
-   * Janelas de funcionamento aplicáveis a uma data:
-   * - Se houver exceção CLOSED para a data → sem janelas (sem slots).
-   * - Se houver exceção CUSTOM → usa opensAt/closesAt da exceção.
-   * - Caso contrário → BusinessHours do weekday correspondente.
+   * Janelas de funcionamento aplicáveis a um serviço numa data:
+   * - Se houver `ScheduleException` da unidade para a data:
+   *   - tipo CLOSED → sem janelas (todos os serviços ficam sem slots no dia).
+   *   - tipo CUSTOM → usa opensAt/closesAt da exceção; aplica para todos os serviços.
+   * - Caso contrário → BusinessHours do (serviceId, weekday) — específico do serviço.
    */
-  private async windowsForDate(date: Date, timezone: string): Promise<DayWindow[]> {
-    // Pega o YYYY-MM-DD no fuso da unidade e remonta como meia-noite UTC,
-    // que é como o Postgres armazena colunas DATE.
+  private async windowsForService(
+    serviceId: string,
+    date: Date,
+    timezone: string,
+  ): Promise<DayWindow[]> {
     const localCal = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
     const y = localCal.getFullYear();
     const m = localCal.getMonth();
@@ -153,10 +169,9 @@ export class SchedulesService {
       return [{ opensAt: exception.opensAt!, closesAt: exception.closesAt! }];
     }
 
-    // weekday no calendário local da unidade
     const weekday = new Date(y, m, d).getDay();
     const hours = await this.prisma.scoped.businessHours.findMany({
-      where: { weekday },
+      where: { serviceId, weekday },
       orderBy: { opensAt: 'asc' },
     });
     return hours.map((h) => ({ opensAt: h.opensAt, closesAt: h.closesAt }));

@@ -10,6 +10,7 @@ export class CreateBusinessHoursDto {
 export class BusinessHoursResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() unitId!: string;
+  @ApiProperty() serviceId!: string;
   @ApiProperty() weekday!: number;
   @ApiProperty() opensAt!: string;
   @ApiProperty() closesAt!: string;
