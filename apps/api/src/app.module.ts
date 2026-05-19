@@ -17,6 +17,7 @@ import { ProfessionalsModule } from './modules/professionals/professionals.modul
 import { PatientsModule } from './modules/patients/patients.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { PlansModule } from './modules/plans/plans.module';
+import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.interceptor';
@@ -45,6 +46,7 @@ import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.int
     PatientsModule,
     SchedulesModule,
     PlansModule,
+    AppointmentsModule,
     HealthModule,
   ],
   providers: [

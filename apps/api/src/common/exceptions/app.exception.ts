@@ -50,3 +50,15 @@ export class InviteInvalidException extends AppException {
     super(message, HttpStatus.GONE);
   }
 }
+
+/**
+ * Falhas das regras de capacidade (§4.3 do CLAUDE.md). O code expõe qual check
+ * falhou para o cliente tratar com mensagem específica.
+ */
+export class AppointmentValidationException extends AppException {
+  readonly code: string;
+  constructor(code: string, message: string, details?: unknown) {
+    super(message, HttpStatus.CONFLICT, details);
+    this.code = code;
+  }
+}

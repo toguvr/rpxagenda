@@ -140,21 +140,24 @@ export class PlansService {
     return plan;
   }
 
-  /** Conta agendamentos ATIVOS do paciente para o serviço na semana corrente (BRT). */
-  async countWeeklyUsage(
-    patientId: string,
-    serviceId: string,
+  /**
+   * Conta agendamentos do plano que consomem quota na semana corrente
+   * (segunda 00:00 no fuso da unidade).
+   */
+  async countWeeklyUsageForPlan(
+    planId: string,
     timezone: string,
     now: Date = new Date(),
   ): Promise<number> {
-    // Appointments model ainda não existe (Fase 3). Como placeholder retornamos 0;
-    // assim que o módulo de appointments for criado, basta substituir este bloco
-    // pela contagem real. Mantenho a assinatura estável para evitar refator depois.
-    const _weekStart = startOfWeekMonday(now, timezone);
-    void patientId;
-    void serviceId;
-    void _weekStart;
-    return 0;
+    const weekStart = startOfWeekMonday(now, timezone);
+    return this.prisma.scoped.appointment.count({
+      where: {
+        planId,
+        consumedSession: true,
+        status: { in: ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'NO_SHOW'] },
+        startsAt: { gte: weekStart },
+      },
+    });
   }
 
   // ---------- formatadores ----------
@@ -182,7 +185,7 @@ export class PlansService {
     const base = this.toResponse(row);
     if (row.type !== 'SUBSCRIPTION') return base;
     const unitTimezone = await this.unitTimezone();
-    const usage = await this.countWeeklyUsage(row.patientId, row.serviceId, unitTimezone);
+    const usage = await this.countWeeklyUsageForPlan(row.id, unitTimezone);
     const quota = buildQuotaStatus(row as PlanLike, usage);
     return { ...base, weeklyUsage: quota.weeklyUsage };
   }
