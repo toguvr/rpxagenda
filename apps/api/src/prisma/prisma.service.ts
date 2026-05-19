@@ -4,7 +4,13 @@ import { PrismaClient } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
 import { buildUnitScopeExtension } from './unit-scope.extension';
 
-export type ScopedPrismaClient = ReturnType<PrismaClient['$extends']>;
+/**
+ * Para fins de tipagem nos services tratamos o cliente estendido como um PrismaClient
+ * comum — a extensão apenas intercepta queries (não muda a forma do cliente).
+ * O caller usa `prisma.scoped.service.findMany(...)` normalmente, com a mesma DX de
+ * `prisma.service.findMany(...)`.
+ */
+export type ScopedPrismaClient = PrismaClient;
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -23,7 +29,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   constructor(private readonly cls: ClsService) {
     super();
-    this.scoped = this.$extends(buildUnitScopeExtension(cls));
+    this.scoped = this.$extends(buildUnitScopeExtension(cls)) as unknown as ScopedPrismaClient;
   }
 
   async onModuleInit(): Promise<void> {

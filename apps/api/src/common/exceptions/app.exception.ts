@@ -7,7 +7,11 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 export abstract class AppException extends HttpException {
   abstract readonly code: string;
 
-  constructor(message: string, status: HttpStatus, public readonly details?: unknown) {
+  constructor(
+    message: string,
+    status: HttpStatus,
+    public readonly details?: unknown,
+  ) {
     super(message, status);
   }
 }
@@ -23,5 +27,26 @@ export class RefreshTokenInvalidException extends AppException {
   readonly code = 'REFRESH_TOKEN_INVALID';
   constructor(message = 'Refresh token inválido ou expirado') {
     super(message, HttpStatus.UNAUTHORIZED);
+  }
+}
+
+export class ResourceNotFoundException extends AppException {
+  readonly code = 'RESOURCE_NOT_FOUND';
+  constructor(resource: string) {
+    super(`${resource} não encontrado(a)`, HttpStatus.NOT_FOUND);
+  }
+}
+
+export class ResourceConflictException extends AppException {
+  readonly code = 'RESOURCE_CONFLICT';
+  constructor(message: string, details?: unknown) {
+    super(message, HttpStatus.CONFLICT, details);
+  }
+}
+
+export class InviteInvalidException extends AppException {
+  readonly code = 'INVITE_INVALID';
+  constructor(message = 'Convite inválido, expirado ou já utilizado') {
+    super(message, HttpStatus.GONE);
   }
 }
