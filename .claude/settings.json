@@ -24,7 +24,8 @@
       "Bash(pnpm add *)",
       "Bash(pnpm jest *)",
       "Bash(DEBUG_UNIT_SCOPE=1 pnpm exec jest unit-scope.extension)",
-      "Bash(grep -nE 'defineExtension|\\\\$extends' /Users/augustotelles/projetos/rpxagenda/apps/api/src/prisma/unit-scope.extension.ts)"
+      "Bash(grep -nE 'defineExtension|\\\\$extends' /Users/augustotelles/projetos/rpxagenda/apps/api/src/prisma/unit-scope.extension.ts)",
+      "Bash(pnpm --filter @rpx/api typecheck)"
     ],
     "additionalDirectories": ["/Users/augustotelles/projetos/rpxagenda/apps"]
   }
