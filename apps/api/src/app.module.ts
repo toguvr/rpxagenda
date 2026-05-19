@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { ClsModule } from 'nestjs-cls';
 import { AppConfigModule } from './config/config.module';
 import type { Env } from './config/env.schema';
 import { buildLoggerOptions } from './common/logger/logger.config';
@@ -17,6 +18,10 @@ import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.int
 @Module({
   imports: [
     AppConfigModule,
+    ClsModule.forRoot({
+      global: true,
+      middleware: { mount: true },
+    }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) =>

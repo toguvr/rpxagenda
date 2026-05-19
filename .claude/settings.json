@@ -17,7 +17,11 @@
       "Bash(curl -s -w '\\\\nHTTP_STATUS=%{http_code}\\\\n' -X POST http://localhost:3333/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@rpxexpert.local\",\"password\":\"senhaErradaQualquer\"}')",
       "Bash(pnpm --filter @rpx/api prisma migrate status)",
       "Bash(pnpm --filter @rpx/api db:seed)",
-      "Bash(pnpm --filter @rpx/api test)"
+      "Bash(pnpm --filter @rpx/api test)",
+      "Bash(NODE_ENV=test SEED_ADMIN_EMAIL=admin@rpxexpert.local SEED_ADMIN_PASSWORD=RpxAdmin@2026 pnpm db:seed)",
+      "Bash(NODE_ENV=test SEED_ADMIN_EMAIL=test-admin@rpxexpert.local SEED_ADMIN_PASSWORD='SenhaForte!2026X' pnpm db:seed)",
+      "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -c \"DELETE FROM users WHERE email='test-admin@rpxexpert.local';\")",
+      "Bash(pnpm add *)"
     ],
     "additionalDirectories": ["/Users/augustotelles/projetos/rpxagenda/apps"]
   }
