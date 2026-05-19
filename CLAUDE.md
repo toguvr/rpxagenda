@@ -177,8 +177,8 @@ Equipment {
 ServiceEquipment { serviceId, equipmentId } // equipamentos possíveis por serviço
 
 // Grade de horários
-BusinessHours { id, unitId, weekday, opensAt, closesAt }
-ScheduleException { id, unitId, date, type: CLOSED | CUSTOM, opensAt?, closesAt?, reason }
+BusinessHours { id, unitId, serviceId, weekday, opensAt, closesAt } // por serviço
+ScheduleException { id, unitId, date, type: CLOSED | CUSTOM, opensAt?, closesAt?, reason } // por unidade
 
 // Planos
 Plan {
