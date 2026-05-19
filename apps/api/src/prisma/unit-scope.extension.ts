@@ -19,6 +19,8 @@ export const UNIT_SCOPED_MODELS = new Set<string>([
   'BusinessHours',
   'ScheduleException',
   'Appointment',
+  'Protocol',
+  'MedicalRecord',
 ]);
 
 const READ_OPERATIONS = new Set([

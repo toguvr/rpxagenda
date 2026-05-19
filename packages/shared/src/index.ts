@@ -9,5 +9,7 @@ export * from './schemas/schedule';
 export * from './schemas/plan';
 export * from './schemas/appointment';
 export * from './schemas/idface';
+export * from './schemas/protocol';
+export * from './schemas/medical-record';
 export * from './cpf';
 export * from './design-tokens';
