@@ -83,10 +83,30 @@ export class AuthService {
     });
   }
 
+  /**
+   * Emite par access+refresh para um usuário recém-criado (sem passar por login).
+   * Usado por fluxos como redenção de convite de paciente.
+   */
+  issueLoginTokens(user: {
+    id: string;
+    email: string;
+    fullName: string;
+    role: RequestUser['role'];
+    unitId: string;
+  }): Promise<LoginResponse> {
+    return this.issueTokens(user);
+  }
+
   // --- helpers ---
 
   private async issueTokens(
-    user: { id: string; email: string; fullName: string; role: RequestUser['role']; unitId: string },
+    user: {
+      id: string;
+      email: string;
+      fullName: string;
+      role: RequestUser['role'];
+      unitId: string;
+    },
     tx: Pick<PrismaService, 'refreshToken'> = this.prisma,
   ): Promise<LoginResponse> {
     const payload: JwtAccessPayload = {

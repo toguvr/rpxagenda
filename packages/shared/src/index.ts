@@ -4,4 +4,6 @@ export * from './schemas/auth';
 export * from './schemas/service';
 export * from './schemas/equipment';
 export * from './schemas/professional';
+export * from './schemas/patient';
+export * from './cpf';
 export * from './design-tokens';
