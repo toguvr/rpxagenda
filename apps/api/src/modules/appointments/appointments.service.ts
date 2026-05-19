@@ -68,98 +68,113 @@ export class AppointmentsService {
     const endsAt = new Date(data.startsAt.getTime() + service.durationMinutes * 60 * 1000);
     const unitTimezone = await this.unitTimezone();
 
-    // Transação SERIALIZABLE: coleta snapshot + valida + insere, tudo atômico.
-    // Conflitos concorrentes serializáveis viram P2034 → 409.
-    try {
-      const created = await this.prisma.$transaction(
-        async (tx) => {
-          const snapshot = await this.collectSnapshot(tx, {
-            unitId,
-            patientId: data.patientId,
-            serviceId: data.serviceId,
-            planId: data.planId,
-            planType: plan.type,
-            startsAt: data.startsAt,
-            endsAt,
-            equipmentIds: data.equipmentIds,
-            unitTimezone,
-            now,
-          });
-
-          const failure = validateAppointment({
-            now,
-            startsAt: data.startsAt,
-            endsAt,
-            patientId: data.patientId,
-            service: {
-              id: service.id,
-              active: service.active,
-              durationMinutes: service.durationMinutes,
-              slotCapacity: service.slotCapacity,
-              schedulingLeadMinutes: service.schedulingLeadMinutes,
-              acceptedPlanType: service.acceptedPlanType,
-            },
-            plan: {
-              id: plan.id,
-              patientId: plan.patientId,
-              serviceId: plan.serviceId,
-              type: plan.type,
-              status: plan.status,
-              remainingSessions: plan.remainingSessions,
-              validUntil: plan.validUntil,
-              weeklyQuota: plan.weeklyQuota,
-              startsAt: plan.startsAt,
-              endsAt: plan.endsAt,
-            },
-            equipmentIds: data.equipmentIds,
-            equipments,
-            snapshot,
-          });
-
-          if (failure) {
-            throw new AppointmentValidationException(failure.code, failure.message, failure);
-          }
-
-          const appointment = await tx.appointment.create({
-            data: {
+    // Transação SERIALIZABLE + retry em serialization failure.
+    // Sob SERIALIZABLE, N requests concorrentes lendo o mesmo snapshot vazio
+    // tentam inserir; apenas 1 commita por rodada e os outros recebem P2034.
+    // Para honrar slotCapacity > 1, fazemos retry com jitter; transações que
+    // tentam estourar a capacidade vão re-validar com snapshot atualizado
+    // (vendo as inserções já commitadas) e falhar com SLOT_FULL na N-ésima.
+    const MAX_ATTEMPTS = 5;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const created = await this.prisma.$transaction(
+          async (tx) => {
+            const snapshot = await this.collectSnapshot(tx, {
               unitId,
               patientId: data.patientId,
               serviceId: data.serviceId,
               planId: data.planId,
+              planType: plan.type,
               startsAt: data.startsAt,
               endsAt,
-              status: 'SCHEDULED',
-              consumedSession: true,
-              equipments: {
-                create: data.equipmentIds.map((equipmentId) => ({ equipmentId })),
-              },
-            },
-            include: { equipments: true },
-          });
-
-          // Decrementa saldo do PACKAGE atomicamente.
-          if (plan.type === 'PACKAGE') {
-            await tx.plan.update({
-              where: { id: plan.id },
-              data: { remainingSessions: { decrement: 1 } },
+              equipmentIds: data.equipmentIds,
+              unitTimezone,
+              now,
             });
-          }
 
-          return appointment;
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      );
+            const failure = validateAppointment({
+              now,
+              startsAt: data.startsAt,
+              endsAt,
+              patientId: data.patientId,
+              service: {
+                id: service.id,
+                active: service.active,
+                durationMinutes: service.durationMinutes,
+                slotCapacity: service.slotCapacity,
+                schedulingLeadMinutes: service.schedulingLeadMinutes,
+                acceptedPlanType: service.acceptedPlanType,
+              },
+              plan: {
+                id: plan.id,
+                patientId: plan.patientId,
+                serviceId: plan.serviceId,
+                type: plan.type,
+                status: plan.status,
+                remainingSessions: plan.remainingSessions,
+                validUntil: plan.validUntil,
+                weeklyQuota: plan.weeklyQuota,
+                startsAt: plan.startsAt,
+                endsAt: plan.endsAt,
+              },
+              equipmentIds: data.equipmentIds,
+              equipments,
+              snapshot,
+            });
 
-      return this.toResponse(created);
-    } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034') {
-        // serialization failure → outro request conflitou. Devolvemos 409 amigável.
-        throw new ResourceConflictException(
-          'Conflito de concorrência ao agendar — tente novamente.',
+            if (failure) {
+              throw new AppointmentValidationException(failure.code, failure.message, failure);
+            }
+
+            const appointment = await tx.appointment.create({
+              data: {
+                unitId,
+                patientId: data.patientId,
+                serviceId: data.serviceId,
+                planId: data.planId,
+                startsAt: data.startsAt,
+                endsAt,
+                status: 'SCHEDULED',
+                consumedSession: true,
+                equipments: {
+                  create: data.equipmentIds.map((equipmentId) => ({ equipmentId })),
+                },
+              },
+              include: { equipments: true },
+            });
+
+            // Decrementa saldo do PACKAGE atomicamente.
+            if (plan.type === 'PACKAGE') {
+              await tx.plan.update({
+                where: { id: plan.id },
+                data: { remainingSessions: { decrement: 1 } },
+              });
+            }
+
+            return appointment;
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
+
+        return this.toResponse(created);
+      } catch (err) {
+        const isSerializationFailure =
+          err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034';
+        if (isSerializationFailure && attempt < MAX_ATTEMPTS) {
+          // backoff curto com jitter (10-50ms) antes de retry
+          await new Promise((r) => setTimeout(r, 10 + Math.floor(Math.random() * 40)));
+          continue;
+        }
+        if (isSerializationFailure) {
+          throw new ResourceConflictException(
+            'Conflito de concorrência persistente ao agendar — tente novamente em alguns segundos.',
+          );
+        }
+        throw err;
       }
-      throw err;
     }
+    // unreachable, mas TS quer um return:
+    throw new ResourceConflictException('Conflito de concorrência inesperado ao agendar.');
   }
 
   // -------- List / Get --------
@@ -272,6 +287,79 @@ export class AppointmentsService {
       return next;
     });
 
+    return this.toResponse(result);
+  }
+
+  // -------- Status transitions --------
+
+  /** SCHEDULED → CONFIRMED. Paciente (próprio) ou admin. */
+  confirm(id: string): Promise<AppointmentResponse> {
+    return this.transition(id, {
+      allowedFrom: ['SCHEDULED'],
+      to: 'CONFIRMED',
+      action: 'APPOINTMENT_CONFIRMED',
+    });
+  }
+
+  /** SCHEDULED ou CONFIRMED → CHECKED_IN + checkedInAt. Admin/Prof (manual; iDFace na Fase 4). */
+  checkIn(id: string, at: Date = new Date()): Promise<AppointmentResponse> {
+    return this.transition(id, {
+      allowedFrom: ['SCHEDULED', 'CONFIRMED'],
+      to: 'CHECKED_IN',
+      action: 'APPOINTMENT_CHECKED_IN',
+      mutate: { checkedInAt: at },
+    });
+  }
+
+  /** CHECKED_IN → COMPLETED + completedAt. Prof/admin. */
+  complete(id: string, at: Date = new Date()): Promise<AppointmentResponse> {
+    return this.transition(id, {
+      allowedFrom: ['CHECKED_IN'],
+      to: 'COMPLETED',
+      action: 'APPOINTMENT_COMPLETED',
+      mutate: { completedAt: at },
+    });
+  }
+
+  private async transition(
+    id: string,
+    spec: {
+      allowedFrom: readonly AppointmentStatusDb[];
+      to: AppointmentStatusDb;
+      action: string;
+      mutate?: Prisma.AppointmentUncheckedUpdateInput;
+    },
+  ): Promise<AppointmentResponse> {
+    const userId = this.cls.get<string>(CLS_KEYS.USER_ID) ?? null;
+    const result = await this.prisma.$transaction(async (tx) => {
+      const appt = await tx.appointment.findFirst({
+        where: { id },
+        include: { equipments: true },
+      });
+      if (!appt) throw new ResourceNotFoundException('Agendamento');
+      if (appt.status === spec.to) return appt;
+      if (!spec.allowedFrom.includes(appt.status)) {
+        throw new ResourceConflictException(
+          `Transição de ${appt.status} para ${spec.to} não é permitida.`,
+        );
+      }
+      const next = await tx.appointment.update({
+        where: { id },
+        data: { status: spec.to, ...(spec.mutate ?? {}) },
+        include: { equipments: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: userId,
+          action: spec.action,
+          entity: 'Appointment',
+          entityId: id,
+          before: { status: appt.status },
+          after: { status: spec.to },
+        },
+      });
+      return next;
+    });
     return this.toResponse(result);
   }
 

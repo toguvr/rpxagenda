@@ -135,6 +135,9 @@ model Service {
   schedulingLeadMinutes    Int         @default(60)
   checkInWindowBeforeMin   Int         @default(30)
   checkInWindowAfterMin    Int         @default(15)
+  /// Minutos depois de endsAt em que o job de no-show ainda aguarda o check-in
+  /// antes de marcar o agendamento como NO_SHOW automaticamente.
+  noShowGraceMinutes       Int         @default(15)
   acceptedPlanType         PlanType
   active                   Boolean     @default(true)
   createdAt                DateTime    @default(now())

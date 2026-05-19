@@ -127,6 +127,45 @@ export class AppointmentsController {
     return this.appointments.cancel(id, body.reason);
   }
 
+  // ---------- Status transitions ----------
+
+  @Roles(UserRole.ADMIN, UserRole.PATIENT)
+  @Post('appointments/:id/confirm')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Paciente confirma presença: SCHEDULED → CONFIRMED.' })
+  @ApiOkResponse({ type: AppointmentResponseDto })
+  async confirm(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+  ): Promise<AppointmentResponse> {
+    if (user.role === UserRole.PATIENT) {
+      const appt = await this.appointments.findById(id);
+      await this.assertPatientIsSelf(user, appt.patientId);
+    }
+    return this.appointments.confirm(id);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
+  @Post('appointments/:id/check-in')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Check-in manual pelo admin/recepção: SCHEDULED|CONFIRMED → CHECKED_IN. iDFace virá na Fase 4.',
+  })
+  @ApiOkResponse({ type: AppointmentResponseDto })
+  checkIn(@Param('id') id: string): Promise<AppointmentResponse> {
+    return this.appointments.checkIn(id);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
+  @Post('appointments/:id/complete')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Profissional finaliza sessão: CHECKED_IN → COMPLETED.' })
+  @ApiOkResponse({ type: AppointmentResponseDto })
+  complete(@Param('id') id: string): Promise<AppointmentResponse> {
+    return this.appointments.complete(id);
+  }
+
   // ---------- Reverter consumo (admin) ----------
 
   @Roles(UserRole.ADMIN)
