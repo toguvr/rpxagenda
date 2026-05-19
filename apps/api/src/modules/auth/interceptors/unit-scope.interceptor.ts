@@ -1,7 +1,7 @@
 import type { CallHandler, ExecutionContext, NestInterceptor } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import type { Request } from 'express';
-import type { ClsService } from 'nestjs-cls';
+import { ClsService } from 'nestjs-cls';
 import type { Observable } from 'rxjs';
 import { CLS_KEYS } from '../../../common/cls/cls-keys';
 import type { RequestUser } from '../types';

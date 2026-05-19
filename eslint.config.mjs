@@ -25,8 +25,14 @@ export default tseslint.config(
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+      // NÃO ativar consistent-type-imports: NestJS depende de metadados de decorator
+      // emitidos a partir de imports de VALOR (constructor(svc: ClsService) etc).
+      // O autofix da regra converte para `import type` e quebra a injeção em runtime.
+      '@typescript-eslint/consistent-type-imports': 'off',
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
