@@ -13,6 +13,7 @@ export default tseslint.config(
       '**/.turbo/**',
       '**/coverage/**',
       'apps/api/prisma/migrations/**',
+      'apps/admin/next-env.d.ts',
     ],
   },
   eslint.configs.recommended,
