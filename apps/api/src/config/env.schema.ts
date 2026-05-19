@@ -18,12 +18,23 @@ export const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
+  // Defaults só valem em development. Em test/production, o seed exige valores explícitos
+  // (validação adicional em prisma/seed.ts), evitando credenciais previsíveis em prod.
   SEED_UNIT_NAME: z.string().min(1).default('RPX Expert — Matriz'),
   SEED_UNIT_TIMEZONE: z.string().min(1).default('America/Sao_Paulo'),
   SEED_ADMIN_EMAIL: z.string().email().default('admin@rpxexpert.local'),
   SEED_ADMIN_PASSWORD: z.string().min(8).default('RpxAdmin@2026'),
   SEED_ADMIN_FULL_NAME: z.string().min(1).default('Administrador RPX'),
 });
+
+/**
+ * Valores default das variáveis SEED_*. Em ambientes não-dev o seed exige que os valores
+ * efetivos venham do environment, recusando estes defaults.
+ */
+export const INSECURE_SEED_DEFAULTS = {
+  SEED_ADMIN_EMAIL: 'admin@rpxexpert.local',
+  SEED_ADMIN_PASSWORD: 'RpxAdmin@2026',
+} as const;
 
 export type Env = z.infer<typeof envSchema>;
 
