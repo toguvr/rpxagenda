@@ -19,12 +19,12 @@
 
 ### 2.1 Componentes
 
-| Componente | Stack | Responsabilidade |
-|---|---|---|
-| `apps/api` | NestJS + Prisma + PostgreSQL | API REST, regras de negócio, integrações |
-| `apps/mobile` | Expo + Expo Router + NativeWind | App do paciente (iOS/Android) |
-| `apps/admin` | Next.js (App Router) + Tailwind + Shadcn/UI | Painel administrativo web |
-| `packages/shared` | TypeScript puro | Tipos, enums, validações Zod compartilhadas |
+| Componente        | Stack                                       | Responsabilidade                            |
+| ----------------- | ------------------------------------------- | ------------------------------------------- |
+| `apps/api`        | NestJS + Prisma + PostgreSQL                | API REST, regras de negócio, integrações    |
+| `apps/mobile`     | Expo + Expo Router + NativeWind             | App do paciente (iOS/Android)               |
+| `apps/admin`      | Next.js (App Router) + Tailwind + Shadcn/UI | Painel administrativo web                   |
+| `packages/shared` | TypeScript puro                             | Tipos, enums, validações Zod compartilhadas |
 
 ### 2.2 Integrações externas
 
@@ -46,18 +46,18 @@
 
 ## 3. Glossário de Domínio
 
-| Termo | Definição |
-|---|---|
-| **Paciente** | Pessoa atendida na clínica. Pode ter múltiplos planos ativos simultaneamente (ex: pacote de fisio + assinatura de musculação). |
-| **Profissional** | Fisioterapeuta, educador físico, etc. Atende sessões, mas **não há vínculo paciente-profissional fixo** — qualquer profissional habilitado pode atender qualquer paciente do serviço. |
-| **Serviço** | Modalidade oferecida (Fisioterapia, Musculação, RPG, Pilates, Avaliação). Cada serviço tem duração própria. |
-| **Equipamento** | Recurso físico finito necessário para certas sessões (ex: maca, reformer, bola suíça). Bloqueia agendamentos quando esgotado. |
-| **Plano** | Contrato comercial vinculado a um paciente. Dois tipos: `PACKAGE` (pacote fechado de X sessões com validade) e `SUBSCRIPTION` (mensalidade recorrente com limite semanal). |
-| **Protocolo** | Plano clínico definido pelo profissional na avaliação. Define quantas sessões totais, frequência sugerida e equipamentos sugeridos. |
-| **Sessão / Agendamento** | Slot reservado para um paciente em um horário, com um serviço e equipamentos opcionais. |
-| **Slot** | Janela de horário disponível na grade da clínica (gerada dinamicamente a partir da duração do serviço + horário de funcionamento + limites). |
-| **Check-in** | Confirmação de presença do paciente, feita via reconhecimento facial no totem iDFace ao chegar na clínica. |
-| **No-show** | Paciente não compareceu e não cancelou. Desconta sessão por padrão, mas admin pode reverter. |
+| Termo                    | Definição                                                                                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Paciente**             | Pessoa atendida na clínica. Pode ter múltiplos planos ativos simultaneamente (ex: pacote de fisio + assinatura de musculação).                                                        |
+| **Profissional**         | Fisioterapeuta, educador físico, etc. Atende sessões, mas **não há vínculo paciente-profissional fixo** — qualquer profissional habilitado pode atender qualquer paciente do serviço. |
+| **Serviço**              | Modalidade oferecida (Fisioterapia, Musculação, RPG, Pilates, Avaliação). Cada serviço tem duração própria.                                                                           |
+| **Equipamento**          | Recurso físico finito necessário para certas sessões (ex: maca, reformer, bola suíça). Bloqueia agendamentos quando esgotado.                                                         |
+| **Plano**                | Contrato comercial vinculado a um paciente. Dois tipos: `PACKAGE` (pacote fechado de X sessões com validade) e `SUBSCRIPTION` (mensalidade recorrente com limite semanal).            |
+| **Protocolo**            | Plano clínico definido pelo profissional na avaliação. Define quantas sessões totais, frequência sugerida e equipamentos sugeridos.                                                   |
+| **Sessão / Agendamento** | Slot reservado para um paciente em um horário, com um serviço e equipamentos opcionais.                                                                                               |
+| **Slot**                 | Janela de horário disponível na grade da clínica (gerada dinamicamente a partir da duração do serviço + horário de funcionamento + limites).                                          |
+| **Check-in**             | Confirmação de presença do paciente, feita via reconhecimento facial no totem iDFace ao chegar na clínica.                                                                            |
+| **No-show**              | Paciente não compareceu e não cancelou. Desconta sessão por padrão, mas admin pode reverter.                                                                                          |
 
 ---
 
@@ -82,13 +82,13 @@ Assinatura pode ser cancelada a qualquer momento. Direitos seguem até o fim do 
 
 Cada `Service` tem `durationMinutes` próprio. Valores iniciais:
 
-| Serviço | Duração | Tipo de plano aceito |
-|---|---|---|
-| Fisioterapia | 50 min | PACKAGE |
-| Avaliação | 90 min | PACKAGE (consome 1 sessão) ou avulsa |
-| Musculação | 60 min | SUBSCRIPTION |
-| RPG | 50 min | PACKAGE |
-| Pilates | 50 min | PACKAGE |
+| Serviço      | Duração | Tipo de plano aceito                 |
+| ------------ | ------- | ------------------------------------ |
+| Fisioterapia | 50 min  | PACKAGE                              |
+| Avaliação    | 90 min  | PACKAGE (consome 1 sessão) ou avulsa |
+| Musculação   | 60 min  | SUBSCRIPTION                         |
+| RPG          | 50 min  | PACKAGE                              |
+| Pilates      | 50 min  | PACKAGE                              |
 
 Slots na grade são gerados **por serviço**, respeitando a duração. A grade da clínica não é "de hora em hora fixa" — ela é calculada dinamicamente.
 
@@ -107,7 +107,7 @@ Essa validação é **transacional** (Postgres advisory lock por `(unitId, servi
 
 ### 4.4 Equipamentos (regra híbrida)
 
-- O **protocolo** define equipamentos *sugeridos* para o paciente (ex: "sempre maca").
+- O **protocolo** define equipamentos _sugeridos_ para o paciente (ex: "sempre maca").
 - No **momento do agendamento**, o sistema pré-marca os equipamentos sugeridos, mas o paciente (ou admin) pode adicionar/remover.
 - Cada equipamento tem `totalQuantity` (estoque físico) e `unitId`.
 - A validação de equipamento é: para cada equipamento `E` desse agendamento, contar quantos agendamentos `ATIVOS` no mesmo slot `[startsAt, endsAt)` consomem `E`. Se `count + 1 > totalQuantity`, bloqueia.
@@ -258,7 +258,7 @@ AuditLog {
 - **Idioma:** código em **inglês** (variáveis, funções, classes). Comentários, mensagens de UI e textos de negócio em **português**.
 - **Datas:** sempre `Date` em UTC no banco. Conversão para `America/Sao_Paulo` apenas na fronteira (UI / formatação / regras de "começo de semana"). Usar `date-fns-tz` ou `Temporal` (quando estável).
 - **Dinheiro:** centavos (integer) no banco. Nunca `float` para valores monetários.
-- **IDs:** `cuid2` ou `uuid v7` — escolher um e padronizar (sugestão: `cuid2`).
+- **IDs:** `cuid` v1 — gerado via `@default(cuid())` do Prisma. Padrão fixado na Sessão 01: zero dependências externas, cluster B-tree razoável, suficiente para o volume previsto. Toda entidade nova usa `String @id @default(cuid())`.
 
 ### 7.2 Backend (NestJS)
 
@@ -352,6 +352,7 @@ Itens assumidos por default que precisam ser confirmados com o stakeholder:
 ## 10. Roadmap de Implementação (alto nível)
 
 ### Fase 0 — Bootstrap (sessão 1 do Claude Code)
+
 - Monorepo pnpm + Turborepo
 - `apps/api` NestJS com Prisma conectado a Postgres
 - `packages/shared` com tipos base
@@ -359,42 +360,50 @@ Itens assumidos por default que precisam ser confirmados com o stakeholder:
 - Seed de 1 unidade + 1 admin
 
 ### Fase 1 — Catálogo e cadastros
+
 - Módulos `services`, `equipments`, `professionals`, `patients`
 - Admin web: CRUDs desses recursos
 - Convite de paciente (geração de token, envio mock)
 
 ### Fase 2 — Grade e planos
+
 - Módulo `schedules` (BusinessHours, exceções, geração de slots)
 - Módulo `plans` (PACKAGE + SUBSCRIPTION em mock, sem Pagar.me ainda)
 - Admin: criar plano para paciente, visualizar grade
 
 ### Fase 3 — Núcleo de agendamento (regra 4.3 — coração do sistema)
+
 - Módulo `appointments` com validação transacional
 - Algoritmo de disponibilidade considerando serviço + equipamento + plano
 - Mobile: tela de agendamento e cancelamento
 - Tests unitários e e2e cobrindo conflitos, race conditions, equipamentos esgotados
 
 ### Fase 4 — Check-in iDFace
+
 - Módulo `check-ins` + `integrations/idface`
 - Webhook de eventos do equipamento
 - Job de detecção de no-show
 - Admin: dashboard de check-ins do dia, reverter no-show
 
 ### Fase 5 — Prontuário e protocolo
+
 - Módulos `protocols` e `medical-records`
 - Admin/profissional: criar protocolo na avaliação, registrar evolução por sessão
 - Histórico do paciente para o profissional
 
 ### Fase 6 — Pagar.me
+
 - `integrations/pagarme`: cobrança avulsa de PACKAGE, assinatura de SUBSCRIPTION
 - Webhooks de cobrança paga/falha
 - Transição de estado de plano por evento
 
 ### Fase 7 — Notificações
+
 - Expo Push: lembrete 24h e 2h antes
 - WhatsApp: convite de cadastro, lembretes, cobrança falha
 
 ### Fase 8 — Hardening
+
 - Auditoria completa, logs estruturados, observabilidade (OpenTelemetry → algum APM)
 - Rate limiting, CORS estrito, headers de segurança
 - Deploy: Railway ou AWS (a decidir)
