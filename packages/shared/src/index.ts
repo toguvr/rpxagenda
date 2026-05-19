@@ -6,5 +6,6 @@ export * from './schemas/equipment';
 export * from './schemas/professional';
 export * from './schemas/patient';
 export * from './schemas/schedule';
+export * from './schemas/plan';
 export * from './cpf';
 export * from './design-tokens';
