@@ -21,7 +21,10 @@
       "Bash(NODE_ENV=test SEED_ADMIN_EMAIL=admin@rpxexpert.local SEED_ADMIN_PASSWORD=RpxAdmin@2026 pnpm db:seed)",
       "Bash(NODE_ENV=test SEED_ADMIN_EMAIL=test-admin@rpxexpert.local SEED_ADMIN_PASSWORD='SenhaForte!2026X' pnpm db:seed)",
       "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -c \"DELETE FROM users WHERE email='test-admin@rpxexpert.local';\")",
-      "Bash(pnpm add *)"
+      "Bash(pnpm add *)",
+      "Bash(pnpm jest *)",
+      "Bash(DEBUG_UNIT_SCOPE=1 pnpm exec jest unit-scope.extension)",
+      "Bash(grep -nE 'defineExtension|\\\\$extends' /Users/augustotelles/projetos/rpxagenda/apps/api/src/prisma/unit-scope.extension.ts)"
     ],
     "additionalDirectories": ["/Users/augustotelles/projetos/rpxagenda/apps"]
   }
