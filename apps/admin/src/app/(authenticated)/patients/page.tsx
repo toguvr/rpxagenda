@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import type { PatientResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 
@@ -32,20 +33,25 @@ export default function PatientsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-brand-black">Pacientes</h1>
           <p className="text-sm text-neutral-500">
             {patients?.length ?? 0} cadastrado{patients?.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <input
-          type="search"
-          placeholder="Buscar por nome, CPF ou e-mail…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="input max-w-sm"
-        />
+        <div className="flex items-center gap-3 flex-1 justify-end">
+          <input
+            type="search"
+            placeholder="Buscar por nome, CPF ou e-mail…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="input max-w-sm"
+          />
+          <Link href="/patients/new" className="btn-primary whitespace-nowrap">
+            Novo paciente
+          </Link>
+        </div>
       </div>
 
       {error && (
@@ -75,7 +81,14 @@ export default function PatientsPage() {
           <tbody>
             {filtered?.map((p) => (
               <tr key={p.id}>
-                <td className="font-medium">{p.fullName}</td>
+                <td>
+                  <Link
+                    href={`/patients/${p.id}`}
+                    className="font-medium text-brand-black hover:text-brand-cyanDark"
+                  >
+                    {p.fullName}
+                  </Link>
+                </td>
                 <td className="font-mono text-xs">{formatCpf(p.cpf)}</td>
                 <td>{p.phone}</td>
                 <td className="text-neutral-500">{p.email ?? '—'}</td>
