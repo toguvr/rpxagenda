@@ -35,7 +35,9 @@
       "Bash(python3 -c ' *)",
       "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -c \"SELECT action, \\\\\"entityId\\\\\", before->>'status' AS before, after->>'status' AS after FROM audit_logs WHERE action LIKE 'APPOINTMENT%' ORDER BY \\\\\"createdAt\\\\\" DESC LIMIT 5;\")",
       "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -c ' *)",
-      "Bash(pnpm --filter @rpx/admin typecheck)"
+      "Bash(pnpm --filter @rpx/admin typecheck)",
+      "Bash(python3 -c \"import sys,json; print\\('mobile @types/react:', json.load\\(sys.stdin\\)['version']\\)\")",
+      "Bash(pnpm --filter @rpx/mobile typecheck)"
     ],
     "additionalDirectories": ["/Users/augustotelles/projetos/rpxagenda/apps"]
   }

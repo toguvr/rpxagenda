@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "RPX Expert",
+    "slug": "rpx-expert",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "rpxexpert",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rpxexpert.app"
+    },
+    "android": {
+      "package": "com.rpxexpert.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0A0A"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

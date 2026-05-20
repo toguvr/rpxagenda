@@ -37,4 +37,21 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
+  {
+    // Arquivos de configuração CommonJS de toolchain (babel/metro/tailwind).
+    // Rodam no Node, usam require/module/__dirname — não são módulos ES.
+    files: ['**/*.config.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        module: 'readonly',
+        require: 'readonly',
+        process: 'readonly',
+        __dirname: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
 );
