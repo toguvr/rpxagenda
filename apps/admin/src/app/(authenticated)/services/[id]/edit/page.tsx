@@ -7,6 +7,7 @@ import type { ServiceResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 import { Card } from '@/components/Card';
 import { ServiceForm, type ServiceFormValues } from '@/components/ServiceForm';
+import { BusinessHoursEditor } from '@/components/BusinessHoursEditor';
 
 export default function EditServicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -68,6 +69,16 @@ export default function EditServicePage({ params }: { params: Promise<{ id: stri
           onCancel={() => router.push('/services')}
         />
       </Card>
+
+      <div className="mt-6">
+        <Card title="Horários de funcionamento">
+          <p className="text-sm text-neutral-500 mb-4">
+            Janelas em que este serviço gera slots. O fuso é o da unidade. Pode haver várias janelas
+            no mesmo dia (ex: manhã + tarde).
+          </p>
+          <BusinessHoursEditor serviceId={service.id} />
+        </Card>
+      </div>
     </div>
   );
 }
