@@ -48,7 +48,7 @@ export class ServicesController {
     return this.services.create(body) as Promise<ServiceResponseDto>;
   }
 
-  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL, UserRole.PATIENT)
   @Get()
   @ApiOperation({ summary: 'Lista serviços da unidade (ativos por padrão)' })
   @ApiQuery({ name: 'includeInactive', required: false, type: Boolean })
@@ -57,7 +57,7 @@ export class ServicesController {
     return this.services.findMany(includeInactive === 'true') as Promise<ServiceResponseDto[]>;
   }
 
-  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL, UserRole.PATIENT)
   @Get(':id')
   @ApiOperation({ summary: 'Detalhe de um serviço' })
   @ApiOkResponse({ type: ServiceResponseDto })

@@ -15,7 +15,9 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <Stack screenOptions={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="agendar" options={{ presentation: 'modal' }} />
+        </Stack>
       </SafeAreaProvider>
     </QueryClientProvider>
   );
