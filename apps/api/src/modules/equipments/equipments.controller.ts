@@ -10,7 +10,6 @@ import {
   Post,
   Put,
   Query,
-  UsePipes,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -78,10 +77,10 @@ export class EquipmentsController {
   @Patch('equipments/:id')
   @ApiOperation({ summary: 'Atualiza um equipamento' })
   @ApiOkResponse({ type: EquipmentResponseDto })
-  @UsePipes(new ZodValidationPipe(updateEquipmentRequestSchema))
   update(
     @Param('id') id: string,
-    @Body() body: UpdateEquipmentRequest,
+    @Body(new ZodValidationPipe(updateEquipmentRequestSchema))
+    body: UpdateEquipmentRequest,
   ): Promise<EquipmentResponseDto> {
     return this.equipments.update(id, body) as Promise<EquipmentResponseDto>;
   }

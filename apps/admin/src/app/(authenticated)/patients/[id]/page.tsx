@@ -13,6 +13,7 @@ import { ApiError, api } from '@/lib/api';
 import { Card } from '@/components/Card';
 import { Modal } from '@/components/Modal';
 import { CopyButton } from '@/components/CopyButton';
+import { CreatePlanModal } from '@/components/CreatePlanModal';
 
 type TabKey = 'plans' | 'appointments';
 
@@ -31,6 +32,8 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   const [invite, setInvite] = useState<InviteResponse | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
+
+  const [createPlanOpen, setCreatePlanOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -171,7 +174,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
       ) : null}
 
       {/* Abas */}
-      <div className="border-b border-neutral-200">
+      <div className="border-b border-neutral-200 flex items-center justify-between">
         <nav className="flex gap-1">
           <TabButton active={tab === 'plans'} onClick={() => setTab('plans')}>
             Planos ({plans?.length ?? 0})
@@ -180,12 +183,28 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             Agendamentos ({appointments?.length ?? 0})
           </TabButton>
         </nav>
+        {tab === 'plans' && (
+          <button
+            onClick={() => setCreatePlanOpen(true)}
+            className="text-sm font-medium text-brand-cyanDark hover:underline mb-1"
+          >
+            + Criar plano
+          </button>
+        )}
       </div>
 
       {tab === 'plans' && <PlansList plans={plans} services={serviceMap} />}
       {tab === 'appointments' && (
         <AppointmentsList appointments={appointments} services={serviceMap} />
       )}
+
+      <CreatePlanModal
+        open={createPlanOpen}
+        onClose={() => setCreatePlanOpen(false)}
+        patientId={id}
+        services={Array.from(serviceMap.values())}
+        onCreated={(plan) => setPlans((prev) => [plan, ...(prev ?? [])])}
+      />
 
       <Modal
         open={inviteModalOpen}

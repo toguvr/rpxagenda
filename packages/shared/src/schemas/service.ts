@@ -14,6 +14,7 @@ export const createServiceRequestSchema = z.object({
   schedulingLeadMinutes: nonNegativeInt.max(60 * 24 * 7).default(60),
   checkInWindowBeforeMin: nonNegativeInt.max(60 * 4).default(30),
   checkInWindowAfterMin: nonNegativeInt.max(60 * 4).default(15),
+  noShowGraceMinutes: nonNegativeInt.max(60 * 4).default(15),
   acceptedPlanType: z.nativeEnum(PlanType),
   active: z.boolean().default(true),
 });
@@ -33,6 +34,7 @@ export const serviceResponseSchema = z.object({
   schedulingLeadMinutes: z.number().int(),
   checkInWindowBeforeMin: z.number().int(),
   checkInWindowAfterMin: z.number().int(),
+  noShowGraceMinutes: z.number().int(),
   acceptedPlanType: z.nativeEnum(PlanType),
   active: z.boolean(),
   createdAt: z.coerce.date(),

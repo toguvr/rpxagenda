@@ -9,7 +9,6 @@ import {
   Patch,
   Post,
   Query,
-  UsePipes,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -70,8 +69,10 @@ export class ServicesController {
   @Patch(':id')
   @ApiOperation({ summary: 'Atualiza campos de um serviço' })
   @ApiOkResponse({ type: ServiceResponseDto })
-  @UsePipes(new ZodValidationPipe(updateServiceRequestSchema))
-  update(@Param('id') id: string, @Body() body: UpdateServiceRequest): Promise<ServiceResponseDto> {
+  update(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateServiceRequestSchema)) body: UpdateServiceRequest,
+  ): Promise<ServiceResponseDto> {
     return this.services.update(id, body) as Promise<ServiceResponseDto>;
   }
 

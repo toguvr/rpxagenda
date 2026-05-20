@@ -9,7 +9,6 @@ import {
   Patch,
   Post,
   Query,
-  UsePipes,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -78,10 +77,10 @@ export class ProfessionalsController {
     summary: 'Atualiza profissional (nome, registro, serviços habilitados, ativo)',
   })
   @ApiOkResponse({ type: ProfessionalResponseDto })
-  @UsePipes(new ZodValidationPipe(updateProfessionalRequestSchema))
   update(
     @Param('id') id: string,
-    @Body() body: UpdateProfessionalRequest,
+    @Body(new ZodValidationPipe(updateProfessionalRequestSchema))
+    body: UpdateProfessionalRequest,
   ): Promise<ProfessionalResponse> {
     return this.professionals.update(id, body);
   }

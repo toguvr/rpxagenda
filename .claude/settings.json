@@ -34,7 +34,8 @@
       "Bash(curl -s -X POST http://localhost:3333/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@rpxexpert.local\",\"password\":\"RpxAdmin@2026\"}')",
       "Bash(python3 -c ' *)",
       "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -c \"SELECT action, \\\\\"entityId\\\\\", before->>'status' AS before, after->>'status' AS after FROM audit_logs WHERE action LIKE 'APPOINTMENT%' ORDER BY \\\\\"createdAt\\\\\" DESC LIMIT 5;\")",
-      "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -c ' *)"
+      "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -c ' *)",
+      "Bash(pnpm --filter @rpx/admin typecheck)"
     ],
     "additionalDirectories": ["/Users/augustotelles/projetos/rpxagenda/apps"]
   }

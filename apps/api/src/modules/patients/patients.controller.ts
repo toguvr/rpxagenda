@@ -8,7 +8,6 @@ import {
   Param,
   Patch,
   Post,
-  UsePipes,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -86,8 +85,10 @@ export class PatientsController {
   @Patch('patients/:id')
   @ApiOperation({ summary: 'Atualiza dados do paciente' })
   @ApiOkResponse({ type: PatientResponseDto })
-  @UsePipes(new ZodValidationPipe(updatePatientRequestSchema))
-  update(@Param('id') id: string, @Body() body: UpdatePatientRequest): Promise<PatientResponse> {
+  update(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updatePatientRequestSchema)) body: UpdatePatientRequest,
+  ): Promise<PatientResponse> {
     return this.patients.update(id, body);
   }
 

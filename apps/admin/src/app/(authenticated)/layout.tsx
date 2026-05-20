@@ -10,6 +10,7 @@ import { logoutApi } from '@/lib/api';
 const NAV = [
   { href: '/appointments', label: 'Agenda' },
   { href: '/patients', label: 'Pacientes' },
+  { href: '/services', label: 'Serviços' },
 ] as const;
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
