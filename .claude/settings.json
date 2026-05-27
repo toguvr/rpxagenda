@@ -45,8 +45,44 @@
       "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -t -c \"SELECT u.email, u.role FROM users u WHERE u.role='PATIENT' LIMIT 5;\")",
       "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -t -c \"SELECT count\\(*\\) FROM services;\")",
       "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -t -c \"SELECT count\\(*\\) FROM plans WHERE status='ACTIVE';\")",
-      "Bash(bash /tmp/smoke14.sh)"
+      "Bash(bash /tmp/smoke14.sh)",
+      "Bash(pnpm --filter @rpx/mobile why react)",
+      "Bash(echo \"TSC EXIT: $?\")",
+      "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -t -c \"SELECT u.email, u.role, p.\\\\\"fullName\\\\\" FROM users u JOIN patients p ON p.\\\\\"userId\\\\\"=u.id WHERE u.role='PATIENT';\")",
+      "Bash(/usr/bin/curl -s -o /dev/null -w \"login HTTP %{http_code}\\\\n\" -X POST http://localhost:3333/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"paciente.smoke14@example.com\",\"password\":\"Paciente@2026\"}')",
+      "Bash(sips -g pixelWidth -g pixelHeight -g format logo.jpg)",
+      "Bash(node -e *)",
+      "Bash(npx --yes expo-doctor@latest)",
+      "Bash(npx --yes expo install react-native)",
+      "Bash(echo \"TSC: $?\")",
+      "Bash(rm -rf node_modules apps/*/node_modules packages/*/node_modules && pnpm install 2>&1 | tail -18)",
+      "Bash(pnpm --filter @rpx/api exec tsc --noEmit)",
+      "Bash(echo \"API: $?\")",
+      "Bash(echo \"ADMIN: $?\")",
+      "Bash(pnpm --filter @rpx/api prisma:generate)",
+      "Bash(echo \"API EXIT: $?\")",
+      "Bash(pnpm --filter @rpx/admin exec tsc --noEmit)",
+      "Bash(pnpm --filter @rpx/mobile exec tsc --noEmit)",
+      "Bash(echo \"MOBILE: $?\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(xargs -I {} docker logs --tail 20 {})",
+      "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -c \"SELECT 1;\")",
+      "Bash(docker system *)",
+      "Bash(docker builder *)",
+      "Bash(docker image *)",
+      "Bash(docker restart *)",
+      "Bash(PGPASSWORD=rpx psql -h localhost -p 5433 -U rpx -d rpx_expert -c \"SELECT 'pg online' AS status, current_timestamp;\")",
+      "Bash(/usr/bin/curl -s -o /dev/null -w \"HTTP %{http_code} | %{time_total}s\\\\n\" https://rpxagenda.togu.dev)",
+      "Bash(host rpxagenda.togu.dev)",
+      "Bash(/usr/bin/curl -sv --max-time 5 https://rpxagenda.togu.dev)",
+      "Bash(docker buildx *)",
+      "Bash(tee /tmp/rpx-deploy/build.log)",
+      "Bash(node_modules/.bin/tsc --version)",
+      "Bash(sed -n '1,30p' packages/shared/src/enums.ts)"
     ],
-    "additionalDirectories": ["/Users/augustotelles/projetos/rpxagenda/apps"]
+    "additionalDirectories": [
+      "/Users/augustotelles/projetos/rpxagenda/apps",
+      "/Users/augustotelles/projetos/rpxagenda/apps/*"
+    ]
   }
 }

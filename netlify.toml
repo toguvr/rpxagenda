@@ -1,0 +1,32 @@
+# Netlify build do admin (Next.js 15) no monorepo pnpm
+# Docs: https://docs.netlify.com/build/configure-builds/file-based-configuration/
+
+[build]
+  # Sobe a partir da raiz do monorepo (pnpm-workspace.yaml está aqui)
+  base = "."
+  # 1) corepack ativa o pnpm na versão fixada do projeto
+  # 2) install reproduz o lockfile
+  # 3) build do shared com --build --force (composite + tsc -p tem quirk de emit dos .d.ts)
+  # 4) build do admin
+  command = """
+corepack enable && \
+corepack prepare pnpm@10.32.1 --activate && \
+pnpm install --frozen-lockfile && \
+pnpm --filter @rpx/shared exec tsc --build --force tsconfig.json && \
+pnpm --filter @rpx/admin build
+"""
+  publish = "apps/admin/.next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# NEXT_PUBLIC_API_URL é configurado no painel do Netlify
+# (Site settings → Build & deploy → Environment), não aqui — assim você
+# muda a URL da API sem precisar de PR. Por contexto:
+#   production         -> https://rpxagenda.togu.dev (após DNS)
+#   deploy-preview     -> mesma URL ou uma de staging, se houver
+#   branch-deploy      -> idem
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

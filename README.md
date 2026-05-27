@@ -98,3 +98,5 @@ pnpm format        # prettier --write
 ## Roadmap
 
 Esta sessão entregou a **Fase 0** (bootstrap). Próximas fases descritas em [`CLAUDE.md`](CLAUDE.md#10-roadmap-de-implementação-alto-nível).
+
+# rpxagenda

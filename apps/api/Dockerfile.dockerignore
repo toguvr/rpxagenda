@@ -1,0 +1,37 @@
+# Versionamento
+.git
+.gitignore
+.github
+
+# node_modules e artefatos de build em qualquer lugar
+**/node_modules
+**/.turbo
+**/.next
+**/.expo
+**/dist
+**/build
+
+# Logs e temp
+*.log
+.DS_Store
+**/.cache
+**/coverage
+
+# .env (segredos vêm via env do Lightsail)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Admin e mobile: só os manifests bastam (workspace resolution)
+apps/admin/**
+!apps/admin/package.json
+apps/mobile/**
+!apps/mobile/package.json
+
+# IDE e docs
+.vscode
+.idea
+SESSION-*.md
+docs/
+*.md
+!README.md

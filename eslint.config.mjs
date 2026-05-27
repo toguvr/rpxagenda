@@ -54,4 +54,13 @@ export default tseslint.config(
       '@typescript-eslint/no-require-imports': 'off',
     },
   },
+  {
+    // React Native: require() é a forma idiomática (e tipada) de importar
+    // assets locais (.png/.jpg/etc.) — assim o Metro consegue resolver e
+    // empacotar o arquivo no bundle. A regra não se aplica.
+    files: ['apps/mobile/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
 );

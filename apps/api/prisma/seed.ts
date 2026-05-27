@@ -8,7 +8,8 @@ const INSECURE_DEFAULTS = {
   SEED_ADMIN_EMAIL: 'admin@rpxexpert.local',
   SEED_ADMIN_PASSWORD: 'RpxAdmin@2026',
 };
-
+// E-mail: paciente.smoke14@example.com
+// Senha: Paciente@2026
 function readEnv(key: string, fallback?: string): string {
   const value = process.env[key];
   if (value && value.trim().length > 0) return value;

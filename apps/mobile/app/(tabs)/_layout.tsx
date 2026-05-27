@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Redirect, Tabs, useRouter } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { getAccessToken } from '@/lib/auth';
 import { setSessionExpiredHandler } from '@/lib/api';
+import { LoadingState } from '@/components/ui';
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -15,25 +18,52 @@ export default function TabsLayout() {
 
   if (authed === null) {
     return (
-      <View className="flex-1 items-center justify-center bg-brand-bgDark">
-        <ActivityIndicator color="#00BCD4" />
+      <View className="flex-1 bg-brand-canvas">
+        <LoadingState />
       </View>
     );
   }
   if (!authed) return <Redirect href="/login" />;
 
   return (
-    <Tabs
-      screenOptions={{
-        headerStyle: { backgroundColor: '#0A0A0A' },
-        headerTintColor: '#ffffff',
-        tabBarActiveTintColor: '#00BCD4',
-        tabBarInactiveTintColor: '#9ca3af',
-        tabBarStyle: { backgroundColor: '#0A0A0A', borderTopColor: '#262626' },
-      }}
-    >
-      <Tabs.Screen name="agenda" options={{ title: 'Agenda' }} />
-      <Tabs.Screen name="planos" options={{ title: 'Planos' }} />
-    </Tabs>
+    <>
+      <StatusBar style="dark" />
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#0097A7',
+          tabBarInactiveTintColor: '#94a3b8',
+          tabBarStyle: {
+            backgroundColor: '#ffffff',
+            borderTopColor: '#e2e8f0',
+            paddingTop: 6,
+          },
+          tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        }}
+      >
+        <Tabs.Screen
+          name="agenda"
+          options={{
+            title: 'Agenda',
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons
+                name={focused ? 'calendar' : 'calendar-outline'}
+                size={size}
+                color={color}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="planos"
+          options={{
+            title: 'Planos',
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons name={focused ? 'albums' : 'albums-outline'} size={size} color={color} />
+            ),
+          }}
+        />
+      </Tabs>
+    </>
   );
 }
