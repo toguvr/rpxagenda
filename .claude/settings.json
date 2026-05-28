@@ -88,7 +88,12 @@
       "Bash(pnpm --filter @rpx/admin add @fullcalendar/react@^6.1.15 @fullcalendar/daygrid@^6.1.15 @fullcalendar/timegrid@^6.1.15 @fullcalendar/interaction@^6.1.15 @fullcalendar/core@^6.1.15)",
       "Bash(ls node_modules/@fullcalendar/core/locales/pt-br.*)",
       "Bash(ls node_modules/@fullcalendar/core/index.*)",
-      "Bash(pnpm --filter @rpx/api test -- capacity-validators)"
+      "Bash(pnpm --filter @rpx/api test -- capacity-validators)",
+      "Bash(tee /tmp/rpx-deploy/push.log)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://rpxagenda.togu.dev/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://rpxagenda.togu.dev/dashboard/summary)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X PATCH https://rpxagenda.togu.dev/appointments/test/reschedule -H 'Content-Type: application/json' -d '{}')",
+      "Bash(command -v netlify)"
     ],
     "additionalDirectories": [
       "/Users/augustotelles/projetos/rpxagenda/apps",
