@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   description: 'Painel administrativo da RPX Expert',
 };
 
+// Admin é 100% dinâmico (auth client-side via token, dados sempre da API).
+// Sem prerender estático — evita erros de SSG em páginas client-only.
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">

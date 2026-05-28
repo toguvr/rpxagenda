@@ -78,7 +78,12 @@
       "Bash(docker buildx *)",
       "Bash(tee /tmp/rpx-deploy/build.log)",
       "Bash(node_modules/.bin/tsc --version)",
-      "Bash(sed -n '1,30p' packages/shared/src/enums.ts)"
+      "Bash(sed -n '1,30p' packages/shared/src/enums.ts)",
+      "Bash(pnpm --filter @rpx/admin why react react-dom)",
+      "Bash(pnpm --filter @rpx/admin build)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('peer react:', d.get\\('peerDependencies',{}\\).get\\('react'\\)\\); print\\('peer react-dom:', d.get\\('peerDependencies',{}\\).get\\('react-dom'\\)\\)\")",
+      "Bash(grep -E \" react$| react-dom$\")",
+      "Bash(pnpm config *)"
     ],
     "additionalDirectories": [
       "/Users/augustotelles/projetos/rpxagenda/apps",
