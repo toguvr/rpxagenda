@@ -96,7 +96,12 @@
       "Bash(command -v netlify)",
       "Bash(awk '/^model Patient /,/^}/' apps/api/prisma/schema.prisma)",
       "Bash(awk '/CREATE TABLE \"patients\"/,/\\\\\\);/' apps/api/prisma/migrations/20260518224950_init/migration.sql)",
-      "Bash(awk '/CREATE TABLE \"patients\"/,/^\\\\\\);/' apps/api/prisma/migrations/20260519021841_phase1_catalog_and_people/migration.sql)"
+      "Bash(awk '/CREATE TABLE \"patients\"/,/^\\\\\\);/' apps/api/prisma/migrations/20260519021841_phase1_catalog_and_people/migration.sql)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' https://rpxagenda.togu.dev/)",
+      "Bash(echo \"root:        $\\(curl -s -o /dev/null -w '%{http_code}' https://rpxagenda.togu.dev/\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' https://rpxagenda.togu.dev/plans)",
+      "Bash(echo \"GET /plans:  $\\(curl -s -o /dev/null -w '%{http_code}' https://rpxagenda.togu.dev/plans\\)  \\(esperado 401 = rota existe\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' https://rpxagenda.togu.dev/patients)"
     ],
     "additionalDirectories": [
       "/Users/augustotelles/projetos/rpxagenda/apps",
