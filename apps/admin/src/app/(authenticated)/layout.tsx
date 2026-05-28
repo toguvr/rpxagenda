@@ -11,6 +11,7 @@ const NAV = [
   { href: '/dashboard', label: 'Painel' },
   { href: '/appointments', label: 'Agenda' },
   { href: '/patients', label: 'Pacientes' },
+  { href: '/plans', label: 'Planos' },
   { href: '/services', label: 'Serviços' },
   { href: '/equipments', label: 'Equipamentos' },
   { href: '/professionals', label: 'Profissionais' },

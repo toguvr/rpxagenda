@@ -1,34 +1,43 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { PlanResponse, ServiceResponse } from '@rpx/shared';
+import type { PatientResponse, PlanResponse, ServiceResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 import { Modal } from './Modal';
 
 /**
- * Modal de criação de plano para um paciente. O tipo do plano é derivado do
- * serviço escolhido (`acceptedPlanType`) — o admin não escolhe o tipo
- * diretamente, evitando o erro de criar PACKAGE para um serviço SUBSCRIPTION.
+ * Modal de criação de plano. O tipo do plano é derivado do serviço escolhido
+ * (`acceptedPlanType`) — o admin não escolhe o tipo diretamente, evitando o erro
+ * de criar PACKAGE para um serviço SUBSCRIPTION.
+ *
+ * Uso na ficha do paciente: passa `patientId` (sem seletor de paciente).
+ * Uso na tela de planos: passa `patients` (mostra o seletor de paciente).
  */
 export function CreatePlanModal({
   open,
   onClose,
   patientId,
+  patients,
   services,
   onCreated,
 }: {
   open: boolean;
   onClose: () => void;
-  patientId: string;
+  patientId?: string;
+  patients?: PatientResponse[];
   services: ServiceResponse[];
   onCreated: (plan: PlanResponse) => void;
 }) {
+  const [selectedPatientId, setSelectedPatientId] = useState('');
   const [serviceId, setServiceId] = useState('');
   const [totalSessions, setTotalSessions] = useState(20);
   const [validUntil, setValidUntil] = useState('');
   const [weeklyQuota, setWeeklyQuota] = useState(3);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const effectivePatientId = patientId ?? selectedPatientId;
+  const showPatientPicker = !patientId;
 
   const service = useMemo(
     () => services.find((s) => s.id === serviceId) ?? null,
@@ -37,7 +46,7 @@ export function CreatePlanModal({
   const planType = service?.acceptedPlanType ?? null;
 
   async function handleSubmit() {
-    if (!service) return;
+    if (!service || !effectivePatientId) return;
     setBusy(true);
     setError(null);
     try {
@@ -45,14 +54,14 @@ export function CreatePlanModal({
         planType === 'PACKAGE'
           ? {
               type: 'PACKAGE' as const,
-              patientId,
+              patientId: effectivePatientId,
               serviceId,
               totalSessions,
               validUntil,
             }
           : {
               type: 'SUBSCRIPTION' as const,
-              patientId,
+              patientId: effectivePatientId,
               serviceId,
               weeklyQuota,
             };
@@ -67,6 +76,7 @@ export function CreatePlanModal({
   }
 
   function resetAndClose() {
+    setSelectedPatientId('');
     setServiceId('');
     setTotalSessions(20);
     setValidUntil('');
@@ -77,12 +87,33 @@ export function CreatePlanModal({
 
   const canSubmit =
     !!service &&
+    !!effectivePatientId &&
     !busy &&
     (planType === 'SUBSCRIPTION' ? weeklyQuota > 0 : totalSessions > 0 && !!validUntil);
 
   return (
     <Modal open={open} onClose={resetAndClose} title="Criar plano">
       <div className="space-y-4">
+        {showPatientPicker && (
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Paciente *</label>
+            <select
+              value={selectedPatientId}
+              onChange={(e) => setSelectedPatientId(e.target.value)}
+              className="input"
+            >
+              <option value="">Selecione…</option>
+              {(patients ?? [])
+                .slice()
+                .sort((a, b) => a.fullName.localeCompare(b.fullName))
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.fullName}
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-neutral-700 mb-1">Serviço *</label>
           <select

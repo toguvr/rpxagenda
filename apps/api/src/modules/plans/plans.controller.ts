@@ -1,16 +1,29 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import {
   createPlanRequestSchema,
+  listPlansQuerySchema,
   updatePlanStatusRequestSchema,
   UserRole,
   type CreatePlanRequest,
+  type ListPlansQuery,
   type PlanResponse,
   type UpdatePlanStatusRequest,
 } from '@rpx/shared';
@@ -42,6 +55,24 @@ export class PlansController {
     @Body(new ZodValidationPipe(createPlanRequestSchema)) body: CreatePlanRequest,
   ): Promise<PlanResponse> {
     return this.plans.create(body);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
+  @Get('plans')
+  @ApiOperation({ summary: 'Lista todos os planos da unidade, com filtros opcionais.' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['PENDING_PAYMENT', 'ACTIVE', 'PAST_DUE', 'SUSPENDED', 'EXPIRED', 'CANCELLED'],
+  })
+  @ApiQuery({ name: 'type', required: false, enum: ['PACKAGE', 'SUBSCRIPTION'] })
+  @ApiQuery({ name: 'serviceId', required: false })
+  @ApiQuery({ name: 'patientId', required: false })
+  @ApiOkResponse({ type: PlanResponseDto, isArray: true })
+  list(
+    @Query(new ZodValidationPipe(listPlansQuerySchema)) q: ListPlansQuery,
+  ): Promise<PlanResponse[]> {
+    return this.plans.list(q);
   }
 
   @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)

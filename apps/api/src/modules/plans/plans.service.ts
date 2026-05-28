@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type Plan as PlanRow } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
-import type { CreatePlanRequest, PlanResponse, UpdatePlanStatusRequest } from '@rpx/shared';
+import type {
+  CreatePlanRequest,
+  ListPlansQuery,
+  PlanResponse,
+  UpdatePlanStatusRequest,
+} from '@rpx/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CLS_KEYS } from '../../common/cls/cls-keys';
 import {
@@ -62,6 +67,19 @@ export class PlansService {
       data: createInput as unknown as Prisma.PlanUncheckedCreateInput,
     });
     return this.toResponse(row);
+  }
+
+  async list(filters: ListPlansQuery): Promise<PlanResponse[]> {
+    const where: Prisma.PlanWhereInput = {};
+    if (filters.status) where.status = filters.status;
+    if (filters.type) where.type = filters.type;
+    if (filters.serviceId) where.serviceId = filters.serviceId;
+    if (filters.patientId) where.patientId = filters.patientId;
+    const rows = await this.prisma.scoped.plan.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }],
+    });
+    return Promise.all(rows.map((r) => this.toResponseWithUsage(r)));
   }
 
   async listForPatient(patientId: string): Promise<PlanResponse[]> {

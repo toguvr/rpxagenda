@@ -45,6 +45,15 @@ export const updatePlanStatusRequestSchema = z.object({
 });
 export type UpdatePlanStatusRequest = z.infer<typeof updatePlanStatusRequestSchema>;
 
+/** Filtros opcionais da listagem global de planos da unidade. */
+export const listPlansQuerySchema = z.object({
+  status: z.nativeEnum(PlanStatus).optional(),
+  type: z.nativeEnum(PlanType).optional(),
+  serviceId: cuidSchema.optional(),
+  patientId: cuidSchema.optional(),
+});
+export type ListPlansQuery = z.infer<typeof listPlansQuerySchema>;
+
 export const planResponseSchema = z.object({
   id: cuidSchema,
   unitId: cuidSchema,
