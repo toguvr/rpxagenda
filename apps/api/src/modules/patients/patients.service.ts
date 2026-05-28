@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, UserRole, type Patient as PatientRow } from '@prisma/client';
+import { ClsService } from 'nestjs-cls';
 import * as argon2 from 'argon2';
 import * as crypto from 'node:crypto';
 import type {
@@ -11,6 +12,7 @@ import type {
   UpdatePatientRequest,
 } from '@rpx/shared';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CLS_KEYS } from '../../common/cls/cls-keys';
 import { TypedConfigService } from '../../config/typed-config.service';
 import {
   InviteInvalidException,
@@ -28,14 +30,22 @@ export class PatientsService {
     private readonly prisma: PrismaService,
     private readonly config: TypedConfigService,
     private readonly auth: AuthService,
+    private readonly cls: ClsService,
   ) {}
+
+  /** Apenas ADMIN pode definir/visualizar o apelido/referência interna. */
+  private isAdmin(): boolean {
+    return this.cls.get<string>(CLS_KEYS.ROLE) === UserRole.ADMIN;
+  }
 
   // -------------- CRUD do paciente --------------
 
   async create(data: CreatePatientRequest): Promise<PatientResponse> {
+    // Não-admin não pode gravar o apelido/referência interna.
+    const sanitized = this.isAdmin() ? data : { ...data, adminReference: undefined };
     try {
       const row = await this.prisma.scoped.patient.create({
-        data: data as unknown as Prisma.PatientUncheckedCreateInput,
+        data: sanitized as unknown as Prisma.PatientUncheckedCreateInput,
       });
       return this.toResponse(row);
     } catch (err) {
@@ -56,10 +66,12 @@ export class PatientsService {
 
   async update(id: string, data: UpdatePatientRequest): Promise<PatientResponse> {
     await this.findById(id);
+    // Não-admin não pode alterar o apelido/referência interna.
+    const sanitized = this.isAdmin() ? data : { ...data, adminReference: undefined };
     try {
       const row = await this.prisma.scoped.patient.update({
         where: { id },
-        data: data as Prisma.PatientUncheckedUpdateInput,
+        data: sanitized as Prisma.PatientUncheckedUpdateInput,
       });
       return this.toResponse(row);
     } catch (err) {
@@ -213,6 +225,8 @@ export class PatientsService {
       email: row.email,
       emergencyContact: row.emergencyContact,
       notes: row.notes,
+      // Oculto de PROFESSIONAL/PATIENT — só ADMIN recebe o valor.
+      adminReference: this.isAdmin() ? row.adminReference : null,
       hasIdfaceEnrolled: !!row.idfaceUserId,
       hasUserAccount: !!row.userId,
       createdAt: row.createdAt,

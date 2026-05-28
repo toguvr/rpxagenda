@@ -93,7 +93,10 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://rpxagenda.togu.dev/)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://rpxagenda.togu.dev/dashboard/summary)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X PATCH https://rpxagenda.togu.dev/appointments/test/reschedule -H 'Content-Type: application/json' -d '{}')",
-      "Bash(command -v netlify)"
+      "Bash(command -v netlify)",
+      "Bash(awk '/^model Patient /,/^}/' apps/api/prisma/schema.prisma)",
+      "Bash(awk '/CREATE TABLE \"patients\"/,/\\\\\\);/' apps/api/prisma/migrations/20260518224950_init/migration.sql)",
+      "Bash(awk '/CREATE TABLE \"patients\"/,/^\\\\\\);/' apps/api/prisma/migrations/20260519021841_phase1_catalog_and_people/migration.sql)"
     ],
     "additionalDirectories": [
       "/Users/augustotelles/projetos/rpxagenda/apps",

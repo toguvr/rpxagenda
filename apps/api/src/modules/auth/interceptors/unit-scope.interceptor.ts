@@ -31,6 +31,7 @@ export class UnitScopeInterceptor implements NestInterceptor {
       if (this.cls.isActive()) {
         this.cls.set(CLS_KEYS.UNIT_ID, req.user.unitId);
         this.cls.set(CLS_KEYS.USER_ID, req.user.id);
+        this.cls.set(CLS_KEYS.ROLE, req.user.role);
       }
     }
     return next.handle();

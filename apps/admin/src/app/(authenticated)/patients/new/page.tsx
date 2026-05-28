@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import type { PatientResponse } from '@rpx/shared';
+import { UserRole, type PatientResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
+import { getCurrentUser } from '@/lib/auth';
 import { Card } from '@/components/Card';
 
 export default function NewPatientPage() {
@@ -16,9 +17,15 @@ export default function NewPatientPage() {
   const [email, setEmail] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
   const [notes, setNotes] = useState('');
+  const [adminReference, setAdminReference] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setIsAdmin(getCurrentUser()?.role === UserRole.ADMIN);
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -35,6 +42,7 @@ export default function NewPatientPage() {
       if (email.trim()) body.email = email.trim();
       if (emergencyContact.trim()) body.emergencyContact = emergencyContact.trim();
       if (notes.trim()) body.notes = notes.trim();
+      if (isAdmin && adminReference.trim()) body.adminReference = adminReference.trim();
       const created = await api<PatientResponse>('/patients', { method: 'POST', body });
       router.replace(`/patients/${created.id}`);
     } catch (err) {
@@ -142,6 +150,25 @@ export default function NewPatientPage() {
               className="input resize-none"
             />
           </div>
+
+          {isAdmin && (
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Apelido / referência (interno)
+              </label>
+              <input
+                type="text"
+                value={adminReference}
+                onChange={(e) => setAdminReference(e.target.value)}
+                maxLength={200}
+                placeholder="Como a recepção identifica o paciente (visível só para admins)"
+                className="input"
+              />
+              <p className="text-xs text-neutral-500 mt-1">
+                Visível apenas para administradores. Profissionais não veem este campo.
+              </p>
+            </div>
+          )}
 
           {error && (
             <div className="col-span-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">

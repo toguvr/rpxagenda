@@ -23,6 +23,8 @@ export const createPatientRequestSchema = z.object({
   email: emailSchema.optional(),
   emergencyContact: z.string().trim().max(200).optional(),
   notes: z.string().trim().max(2000).optional(),
+  /** Apelido/referência interna — só ADMIN pode definir e visualizar. */
+  adminReference: z.string().trim().max(200).optional(),
 });
 export type CreatePatientRequest = z.infer<typeof createPatientRequestSchema>;
 
@@ -40,6 +42,8 @@ export const patientResponseSchema = z.object({
   email: emailSchema.nullable(),
   emergencyContact: z.string().nullable(),
   notes: z.string().nullable(),
+  /** Preenchido apenas para ADMIN; `null` para PROFESSIONAL/PATIENT. */
+  adminReference: z.string().nullable(),
   hasIdfaceEnrolled: z.boolean(),
   hasUserAccount: z.boolean(),
   createdAt: z.coerce.date(),

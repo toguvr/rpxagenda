@@ -1,29 +1,38 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type {
   AppointmentResponse,
+  EquipmentResponse,
   InviteResponse,
   PatientResponse,
   PlanResponse,
+  ProfessionalResponse,
+  ProtocolResponse,
   ServiceResponse,
 } from '@rpx/shared';
+import { UserRole } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
+import { getCurrentUser } from '@/lib/auth';
 import { Card } from '@/components/Card';
 import { Modal } from '@/components/Modal';
 import { CopyButton } from '@/components/CopyButton';
 import { CreatePlanModal } from '@/components/CreatePlanModal';
+import { CreateProtocolModal } from '@/components/CreateProtocolModal';
 
-type TabKey = 'plans' | 'appointments';
+type TabKey = 'plans' | 'protocols' | 'appointments';
 
 export default function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
 
   const [patient, setPatient] = useState<PatientResponse | null>(null);
   const [plans, setPlans] = useState<PlanResponse[] | null>(null);
+  const [protocols, setProtocols] = useState<ProtocolResponse[] | null>(null);
   const [appointments, setAppointments] = useState<AppointmentResponse[] | null>(null);
   const [serviceMap, setServiceMap] = useState<Map<string, ServiceResponse>>(new Map());
+  const [professionals, setProfessionals] = useState<ProfessionalResponse[]>([]);
+  const [equipments, setEquipments] = useState<EquipmentResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [tab, setTab] = useState<TabKey>('plans');
@@ -34,22 +43,39 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   const [inviteLoading, setInviteLoading] = useState(false);
 
   const [createPlanOpen, setCreatePlanOpen] = useState(false);
+  const [createProtocolOpen, setCreateProtocolOpen] = useState(false);
+
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminRef, setAdminRef] = useState('');
+  const [savingRef, setSavingRef] = useState(false);
+  const [refMsg, setRefMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsAdmin(getCurrentUser()?.role === UserRole.ADMIN);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [p, ps, ap, svcs] = await Promise.all([
+        const [p, ps, prot, ap, svcs, profs, eqs] = await Promise.all([
           api<PatientResponse>(`/patients/${id}`),
           api<PlanResponse[]>(`/patients/${id}/plans`),
+          api<ProtocolResponse[]>(`/patients/${id}/protocols`),
           api<AppointmentResponse[]>(`/appointments?patientId=${id}`),
           api<ServiceResponse[]>('/services?includeInactive=true'),
+          api<ProfessionalResponse[]>('/professionals'),
+          api<EquipmentResponse[]>('/equipments'),
         ]);
         if (cancelled) return;
         setPatient(p);
+        setAdminRef(p.adminReference ?? '');
         setPlans(ps);
+        setProtocols(prot);
         setAppointments(ap);
         setServiceMap(new Map(svcs.map((s) => [s.id, s])));
+        setProfessionals(profs);
+        setEquipments(eqs);
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof ApiError ? err.message : 'Falha ao carregar paciente.');
@@ -59,6 +85,43 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
       cancelled = true;
     };
   }, [id]);
+
+  const professionalMap = useMemo(
+    () => new Map(professionals.map((p) => [p.id, p])),
+    [professionals],
+  );
+  const equipmentMap = useMemo(() => new Map(equipments.map((e) => [e.id, e])), [equipments]);
+
+  // Planos sem protocolo ativo — só esses podem receber uma nova avaliação.
+  const eligiblePlans = useMemo(() => {
+    const planIdsWithActive = new Set(
+      (protocols ?? []).filter((pr) => pr.active).map((pr) => pr.planId),
+    );
+    return (plans ?? []).filter((p) => !planIdsWithActive.has(p.id));
+  }, [plans, protocols]);
+
+  const defaultProfessionalId = useMemo(() => {
+    const u = getCurrentUser();
+    return professionals.find((p) => p.userId === u?.id)?.id ?? '';
+  }, [professionals]);
+
+  async function handleSaveAdminRef() {
+    setSavingRef(true);
+    setRefMsg(null);
+    try {
+      const updated = await api<PatientResponse>(`/patients/${id}`, {
+        method: 'PATCH',
+        body: { adminReference: adminRef.trim() },
+      });
+      setPatient(updated);
+      setAdminRef(updated.adminReference ?? '');
+      setRefMsg('Salvo.');
+    } catch (err) {
+      setRefMsg(err instanceof ApiError ? err.message : 'Falha ao salvar.');
+    } finally {
+      setSavingRef(false);
+    }
+  }
 
   async function handleGenerateInvite() {
     setInviteError(null);
@@ -159,6 +222,35 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         </Card>
       </div>
 
+      {isAdmin && (
+        <Card title="Apelido / referência (interno)">
+          <p className="mb-2 text-xs text-neutral-500">
+            Visível apenas para administradores — profissionais e o paciente não veem este campo.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input
+              type="text"
+              value={adminRef}
+              onChange={(e) => {
+                setAdminRef(e.target.value);
+                setRefMsg(null);
+              }}
+              maxLength={200}
+              placeholder="Ex.: indicação Dra. Ana, paciente VIP, nome social…"
+              className="input sm:flex-1"
+            />
+            <button
+              onClick={handleSaveAdminRef}
+              disabled={savingRef || adminRef.trim() === (patient.adminReference ?? '')}
+              className="btn-primary whitespace-nowrap"
+            >
+              {savingRef ? 'Salvando…' : 'Salvar'}
+            </button>
+          </div>
+          {refMsg && <p className="mt-2 text-xs text-neutral-500">{refMsg}</p>}
+        </Card>
+      )}
+
       {patient.emergencyContact || patient.notes ? (
         <Card title="Observações">
           {patient.emergencyContact && (
@@ -179,6 +271,9 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           <TabButton active={tab === 'plans'} onClick={() => setTab('plans')}>
             Planos ({plans?.length ?? 0})
           </TabButton>
+          <TabButton active={tab === 'protocols'} onClick={() => setTab('protocols')}>
+            Avaliações ({protocols?.length ?? 0})
+          </TabButton>
           <TabButton active={tab === 'appointments'} onClick={() => setTab('appointments')}>
             Agendamentos ({appointments?.length ?? 0})
           </TabButton>
@@ -191,9 +286,26 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             + Criar plano
           </button>
         )}
+        {tab === 'protocols' && (
+          <button
+            onClick={() => setCreateProtocolOpen(true)}
+            className="text-sm font-medium text-brand-cyanDark hover:underline mb-1"
+          >
+            + Registrar avaliação
+          </button>
+        )}
       </div>
 
       {tab === 'plans' && <PlansList plans={plans} services={serviceMap} />}
+      {tab === 'protocols' && (
+        <ProtocolsList
+          protocols={protocols}
+          services={serviceMap}
+          plans={plans}
+          professionals={professionalMap}
+          equipments={equipmentMap}
+        />
+      )}
       {tab === 'appointments' && (
         <AppointmentsList appointments={appointments} services={serviceMap} />
       )}
@@ -204,6 +316,21 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         patientId={id}
         services={Array.from(serviceMap.values())}
         onCreated={(plan) => setPlans((prev) => [plan, ...(prev ?? [])])}
+      />
+
+      <CreateProtocolModal
+        open={createProtocolOpen}
+        onClose={() => setCreateProtocolOpen(false)}
+        patientId={id}
+        plans={eligiblePlans}
+        services={serviceMap}
+        professionals={professionals}
+        equipments={equipments}
+        defaultProfessionalId={defaultProfessionalId}
+        onCreated={(protocol) => {
+          setProtocols((prev) => [protocol, ...(prev ?? [])]);
+          setCreateProtocolOpen(false);
+        }}
       />
 
       <Modal
@@ -289,6 +416,89 @@ function PlansList({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function ProtocolsList({
+  protocols,
+  services,
+  plans,
+  professionals,
+  equipments,
+}: {
+  protocols: ProtocolResponse[] | null;
+  services: Map<string, ServiceResponse>;
+  plans: PlanResponse[] | null;
+  professionals: Map<string, ProfessionalResponse>;
+  equipments: Map<string, EquipmentResponse>;
+}) {
+  if (!protocols) return <div className="text-neutral-400">Carregando…</div>;
+  if (protocols.length === 0)
+    return (
+      <div className="text-neutral-500 bg-white border border-neutral-200 rounded-lg p-8 text-center">
+        Nenhuma avaliação registrada. Clique em “+ Registrar avaliação” para começar.
+      </div>
+    );
+
+  const planService = (planId: string) => {
+    const plan = plans?.find((p) => p.id === planId);
+    return plan ? (services.get(plan.serviceId)?.name ?? 'Serviço') : null;
+  };
+
+  return (
+    <div className="space-y-3">
+      {protocols.map((pr) => (
+        <div key={pr.id} className="rounded-lg border border-neutral-200 bg-white p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-brand-black">
+                  {professionals.get(pr.professionalId)?.fullName ?? 'Profissional'}
+                </span>
+                {pr.active ? (
+                  <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                    ativo
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500">
+                    inativo
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-neutral-500">
+                {planService(pr.planId) ? `${planService(pr.planId)} · ` : ''}
+                {formatDate(pr.createdAt)}
+              </div>
+            </div>
+            <div className="text-right text-sm text-neutral-600">
+              <span className="font-medium text-brand-black">{pr.totalSessions}</span> sessões ·{' '}
+              <span className="font-medium text-brand-black">{pr.sessionsPerWeek}</span>/semana
+            </div>
+          </div>
+
+          <p className="mt-3 whitespace-pre-wrap text-sm text-neutral-800">{pr.diagnosis}</p>
+          {pr.observations && (
+            <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-600">
+              <span className="text-neutral-400">Observações: </span>
+              {pr.observations}
+            </p>
+          )}
+
+          {pr.equipmentIds.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {pr.equipmentIds.map((eqId) => (
+                <span
+                  key={eqId}
+                  className="rounded-full bg-brand-cyanLight px-2 py-0.5 text-xs font-medium text-brand-cyanDark"
+                >
+                  {equipments.get(eqId)?.name ?? eqId.slice(0, 8)}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
