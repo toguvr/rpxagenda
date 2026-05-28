@@ -19,14 +19,14 @@ export default function EquipmentsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header">
         <div>
           <h1 className="text-2xl font-bold text-brand-black">Equipamentos</h1>
           <p className="text-sm text-neutral-500">
             {equipments?.length ?? 0} cadastrado{equipments?.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <Link href="/equipments/new" className="btn-primary">
+        <Link href="/equipments/new" className="btn-primary whitespace-nowrap text-center">
           Novo equipamento
         </Link>
       </div>
@@ -44,42 +44,44 @@ export default function EquipmentsPage() {
           Nenhum equipamento cadastrado.
         </div>
       ) : (
-        <table className="table-base">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Quantidade total</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {equipments.map((e) => (
-              <tr key={e.id}>
-                <td>
-                  <Link
-                    href={`/equipments/${e.id}/edit`}
-                    className="font-medium text-brand-black hover:text-brand-cyanDark"
-                  >
-                    {e.name}
-                  </Link>
-                </td>
-                <td>{e.totalQuantity}</td>
-                <td>
-                  <span
-                    className={
-                      'inline-block text-xs px-2 py-0.5 rounded-full font-medium ' +
-                      (e.active
-                        ? 'bg-brand-cyanLight text-brand-cyanDark'
-                        : 'bg-neutral-100 text-neutral-500')
-                    }
-                  >
-                    {e.active ? 'Ativo' : 'Inativo'}
-                  </span>
-                </td>
+        <div className="table-wrap">
+          <table className="table-base">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Quantidade total</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {equipments.map((e) => (
+                <tr key={e.id}>
+                  <td>
+                    <Link
+                      href={`/equipments/${e.id}/edit`}
+                      className="font-medium text-brand-black hover:text-brand-cyanDark"
+                    >
+                      {e.name}
+                    </Link>
+                  </td>
+                  <td>{e.totalQuantity}</td>
+                  <td>
+                    <span
+                      className={
+                        'inline-block text-xs px-2 py-0.5 rounded-full font-medium ' +
+                        (e.active
+                          ? 'bg-brand-cyanLight text-brand-cyanDark'
+                          : 'bg-neutral-100 text-neutral-500')
+                      }
+                    >
+                      {e.active ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

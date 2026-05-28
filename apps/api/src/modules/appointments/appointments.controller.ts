@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -11,11 +21,13 @@ import {
   cancelAppointmentRequestSchema,
   createAppointmentRequestSchema,
   listAppointmentsQuerySchema,
+  rescheduleAppointmentRequestSchema,
   UserRole,
   type AppointmentResponse,
   type CancelAppointmentRequest,
   type CreateAppointmentRequest,
   type ListAppointmentsQuery,
+  type RescheduleAppointmentRequest,
 } from '@rpx/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -125,6 +137,24 @@ export class AppointmentsController {
       await this.assertPatientIsSelf(user, appt.patientId);
     }
     return this.appointments.cancel(id, body.reason);
+  }
+
+  // ---------- Reschedule (drag-and-drop) ----------
+
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
+  @Patch('appointments/:id/reschedule')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Remarca um agendamento (SCHEDULED|CONFIRMED) para outro horário. Revalida a capacidade do §4.3 excluindo o próprio agendamento; não reconsome o plano. `force=true` ignora a violação de capacidade (ação auditada).',
+  })
+  @ApiOkResponse({ type: AppointmentResponseDto })
+  reschedule(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(rescheduleAppointmentRequestSchema))
+    body: RescheduleAppointmentRequest,
+  ): Promise<AppointmentResponse> {
+    return this.appointments.reschedule(id, body.startsAt, body.force);
   }
 
   // ---------- Status transitions ----------

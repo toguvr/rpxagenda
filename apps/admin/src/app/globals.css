@@ -21,16 +21,62 @@
   .input {
     @apply w-full border border-neutral-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-cyan focus:border-transparent;
   }
+  /* Cabeçalho de página: empilha no mobile, lado a lado a partir de sm */
+  .page-header {
+    @apply mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between;
+  }
+  /* Container de scroll horizontal para tabelas (mobile) */
+  .table-wrap {
+    @apply w-full overflow-x-auto;
+  }
   .table-base {
-    @apply w-full bg-white border border-neutral-200 rounded-lg overflow-hidden;
+    @apply w-full rounded-lg border border-neutral-200 bg-white;
   }
   .table-base th {
-    @apply text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 bg-neutral-50 px-4 py-3 border-b border-neutral-200;
+    @apply whitespace-nowrap text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 bg-neutral-50 px-4 py-3 border-b border-neutral-200;
   }
   .table-base td {
-    @apply px-4 py-3 text-sm text-neutral-800 border-b border-neutral-100;
+    @apply whitespace-nowrap px-4 py-3 text-sm text-neutral-800 border-b border-neutral-100;
   }
   .table-base tbody tr:hover {
     @apply bg-neutral-50;
+  }
+}
+
+/* ---- FullCalendar: tema da marca (ciano) ---- */
+.fc {
+  --fc-border-color: #e5e5e5;
+  --fc-button-bg-color: #0a0a0a;
+  --fc-button-border-color: #0a0a0a;
+  --fc-button-hover-bg-color: #00bcd4;
+  --fc-button-hover-border-color: #00bcd4;
+  --fc-button-active-bg-color: #00bcd4;
+  --fc-button-active-border-color: #00bcd4;
+  --fc-today-bg-color: #e0f7fa;
+  --fc-now-indicator-color: #00bcd4;
+  font-size: 0.875rem;
+}
+.fc .fc-toolbar-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0a0a0a;
+}
+.fc .fc-button {
+  text-transform: capitalize;
+  font-weight: 500;
+  box-shadow: none !important;
+}
+.fc .fc-event {
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.fc .fc-event.fc-event-draggable {
+  cursor: grab;
+}
+@media (max-width: 640px) {
+  .fc .fc-toolbar.fc-header-toolbar {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch;
   }
 }

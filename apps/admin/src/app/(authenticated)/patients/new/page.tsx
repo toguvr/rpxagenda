@@ -61,7 +61,7 @@ export default function NewPatientPage() {
       </div>
 
       <Card title="Dados cadastrais">
-        <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="col-span-2">
             <label className="block text-sm font-medium text-neutral-700 mb-1">
               Nome completo *

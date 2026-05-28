@@ -85,7 +85,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link href="/patients" className="text-sm text-brand-cyanDark hover:underline">
             ← pacientes
@@ -115,7 +115,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card title="Identificação">
           <dl className="text-sm space-y-2">
             <div className="flex justify-between">
@@ -258,36 +258,38 @@ function PlansList({
       </div>
     );
   return (
-    <table className="table-base">
-      <thead>
-        <tr>
-          <th>Serviço</th>
-          <th>Tipo</th>
-          <th>Status</th>
-          <th>Saldo / Quota</th>
-          <th>Validade</th>
-        </tr>
-      </thead>
-      <tbody>
-        {plans.map((p) => (
-          <tr key={p.id}>
-            <td className="font-medium">
-              {services.get(p.serviceId)?.name ?? p.serviceId.slice(0, 8)}
-            </td>
-            <td>{p.type}</td>
-            <td>
-              <StatusBadge>{p.status}</StatusBadge>
-            </td>
-            <td>
-              {p.type === 'PACKAGE'
-                ? `${p.remainingSessions ?? '—'} / ${p.totalSessions ?? '—'}`
-                : `${p.weeklyUsage ?? 0} / ${p.weeklyQuota ?? '—'} por semana`}
-            </td>
-            <td>{p.validUntil ? formatDate(p.validUntil) : '—'}</td>
+    <div className="table-wrap">
+      <table className="table-base">
+        <thead>
+          <tr>
+            <th>Serviço</th>
+            <th>Tipo</th>
+            <th>Status</th>
+            <th>Saldo / Quota</th>
+            <th>Validade</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {plans.map((p) => (
+            <tr key={p.id}>
+              <td className="font-medium">
+                {services.get(p.serviceId)?.name ?? p.serviceId.slice(0, 8)}
+              </td>
+              <td>{p.type}</td>
+              <td>
+                <StatusBadge>{p.status}</StatusBadge>
+              </td>
+              <td>
+                {p.type === 'PACKAGE'
+                  ? `${p.remainingSessions ?? '—'} / ${p.totalSessions ?? '—'}`
+                  : `${p.weeklyUsage ?? 0} / ${p.weeklyQuota ?? '—'} por semana`}
+              </td>
+              <td>{p.validUntil ? formatDate(p.validUntil) : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -306,29 +308,31 @@ function AppointmentsList({
       </div>
     );
   return (
-    <table className="table-base">
-      <thead>
-        <tr>
-          <th>Quando</th>
-          <th>Serviço</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {appointments
-          .slice()
-          .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())
-          .map((a) => (
-            <tr key={a.id}>
-              <td className="font-mono text-xs">{formatDateTime(a.startsAt)}</td>
-              <td>{services.get(a.serviceId)?.name ?? a.serviceId.slice(0, 8)}</td>
-              <td>
-                <StatusBadge>{a.status}</StatusBadge>
-              </td>
-            </tr>
-          ))}
-      </tbody>
-    </table>
+    <div className="table-wrap">
+      <table className="table-base">
+        <thead>
+          <tr>
+            <th>Quando</th>
+            <th>Serviço</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {appointments
+            .slice()
+            .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())
+            .map((a) => (
+              <tr key={a.id}>
+                <td className="font-mono text-xs">{formatDateTime(a.startsAt)}</td>
+                <td>{services.get(a.serviceId)?.name ?? a.serviceId.slice(0, 8)}</td>
+                <td>
+                  <StatusBadge>{a.status}</StatusBadge>
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

@@ -19,7 +19,7 @@ export default function LoginPage() {
     try {
       const res = await login(email, password);
       saveSession(res.accessToken, res.refreshToken, res.user);
-      router.replace('/appointments');
+      router.replace('/dashboard');
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

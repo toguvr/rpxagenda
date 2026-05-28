@@ -33,22 +33,22 @@ export default function PatientsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 gap-4">
+      <div className="page-header">
         <div>
           <h1 className="text-2xl font-bold text-brand-black">Pacientes</h1>
           <p className="text-sm text-neutral-500">
             {patients?.length ?? 0} cadastrado{patients?.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-1 justify-end">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
           <input
             type="search"
             placeholder="Buscar por nome, CPF ou e-mail…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="input max-w-sm"
+            className="input sm:max-w-sm"
           />
-          <Link href="/patients/new" className="btn-primary whitespace-nowrap">
+          <Link href="/patients/new" className="btn-primary whitespace-nowrap text-center">
             Novo paciente
           </Link>
         </div>
@@ -67,43 +67,45 @@ export default function PatientsPage() {
           Nenhum paciente encontrado.
         </div>
       ) : (
-        <table className="table-base">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>CPF</th>
-              <th>Telefone</th>
-              <th>E-mail</th>
-              <th>Acesso</th>
-              <th>iDFace</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered?.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  <Link
-                    href={`/patients/${p.id}`}
-                    className="font-medium text-brand-black hover:text-brand-cyanDark"
-                  >
-                    {p.fullName}
-                  </Link>
-                </td>
-                <td className="font-mono text-xs">{formatCpf(p.cpf)}</td>
-                <td>{p.phone}</td>
-                <td className="text-neutral-500">{p.email ?? '—'}</td>
-                <td>
-                  <Badge ok={p.hasUserAccount}>
-                    {p.hasUserAccount ? 'Cadastrado' : 'Pendente'}
-                  </Badge>
-                </td>
-                <td>
-                  <Badge ok={p.hasIdfaceEnrolled}>{p.hasIdfaceEnrolled ? 'Sim' : 'Não'}</Badge>
-                </td>
+        <div className="table-wrap">
+          <table className="table-base">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>CPF</th>
+                <th>Telefone</th>
+                <th>E-mail</th>
+                <th>Acesso</th>
+                <th>iDFace</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered?.map((p) => (
+                <tr key={p.id}>
+                  <td>
+                    <Link
+                      href={`/patients/${p.id}`}
+                      className="font-medium text-brand-black hover:text-brand-cyanDark"
+                    >
+                      {p.fullName}
+                    </Link>
+                  </td>
+                  <td className="font-mono text-xs">{formatCpf(p.cpf)}</td>
+                  <td>{p.phone}</td>
+                  <td className="text-neutral-500">{p.email ?? '—'}</td>
+                  <td>
+                    <Badge ok={p.hasUserAccount}>
+                      {p.hasUserAccount ? 'Cadastrado' : 'Pendente'}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge ok={p.hasIdfaceEnrolled}>{p.hasIdfaceEnrolled ? 'Sim' : 'Não'}</Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

@@ -23,6 +23,7 @@ import {
   ACTIVE_STATUSES_FOR_CAPACITY,
   STATUSES_THAT_CONSUME_QUOTA,
   validateAppointment,
+  validateReschedule,
   type CapacitySnapshot,
 } from './capacity-validators';
 
@@ -175,6 +176,145 @@ export class AppointmentsService {
     }
     // unreachable, mas TS quer um return:
     throw new ResourceConflictException('Conflito de concorrência inesperado ao agendar.');
+  }
+
+  // -------- Reschedule (drag-and-drop) --------
+
+  /**
+   * Remarca um agendamento para um novo horário. Só agendamentos ainda não
+   * realizados (SCHEDULED, CONFIRMED) podem ser movidos. Revalida a capacidade
+   * do §4.3 para o novo horário, excluindo o próprio agendamento da contagem.
+   * Não reconsome o plano — apenas move o horário (recalcula endsAt pela duração
+   * do serviço). Com `force=true` o admin ignora a violação de capacidade, e a
+   * ação é auditada como remarcação forçada.
+   */
+  async reschedule(
+    id: string,
+    newStartsAt: Date,
+    force = false,
+    now: Date = new Date(),
+  ): Promise<AppointmentResponse> {
+    const unitId = this.cls.get<string>(CLS_KEYS.UNIT_ID);
+    if (!unitId) throw new Error('Unit context missing.');
+    const userId = this.cls.get<string>(CLS_KEYS.USER_ID) ?? null;
+
+    const appt = await this.prisma.scoped.appointment.findFirst({
+      where: { id },
+      include: {
+        service: true,
+        plan: { select: { id: true, type: true } },
+        equipments: { select: { equipmentId: true } },
+      },
+    });
+    if (!appt) throw new ResourceNotFoundException('Agendamento');
+
+    if (appt.status !== 'SCHEDULED' && appt.status !== 'CONFIRMED') {
+      throw new ResourceConflictException(
+        `Só é possível remarcar agendamentos em SCHEDULED ou CONFIRMED (atual: ${appt.status}).`,
+      );
+    }
+
+    const endsAt = new Date(newStartsAt.getTime() + appt.service.durationMinutes * 60 * 1000);
+    const equipmentIds = appt.equipments.map((e) => e.equipmentId);
+
+    // No-op: mesmo horário.
+    if (appt.startsAt.getTime() === newStartsAt.getTime()) {
+      return this.findById(id);
+    }
+
+    const equipments =
+      equipmentIds.length > 0
+        ? await this.prisma.scoped.equipment.findMany({
+            where: { id: { in: equipmentIds } },
+            select: { id: true, totalQuantity: true },
+          })
+        : [];
+    const unitTimezone = await this.unitTimezone();
+
+    const MAX_ATTEMPTS = 5;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const updated = await this.prisma.$transaction(
+          async (tx) => {
+            if (!force) {
+              const snapshot = await this.collectSnapshot(tx, {
+                unitId,
+                patientId: appt.patientId,
+                serviceId: appt.serviceId,
+                planId: appt.planId,
+                planType: appt.plan.type,
+                startsAt: newStartsAt,
+                endsAt,
+                equipmentIds,
+                unitTimezone,
+                now,
+                excludeAppointmentId: id,
+              });
+
+              const failure = validateReschedule({
+                now,
+                startsAt: newStartsAt,
+                endsAt,
+                service: {
+                  id: appt.service.id,
+                  active: appt.service.active,
+                  durationMinutes: appt.service.durationMinutes,
+                  slotCapacity: appt.service.slotCapacity,
+                  schedulingLeadMinutes: appt.service.schedulingLeadMinutes,
+                  acceptedPlanType: appt.service.acceptedPlanType,
+                },
+                equipmentIds,
+                equipments,
+                snapshot,
+              });
+
+              if (failure) {
+                throw new AppointmentValidationException(failure.code, failure.message, failure);
+              }
+            }
+
+            const next = await tx.appointment.update({
+              where: { id },
+              data: { startsAt: newStartsAt, endsAt },
+              include: { equipments: true },
+            });
+
+            await tx.auditLog.create({
+              data: {
+                actorId: userId,
+                action: force ? 'APPOINTMENT_RESCHEDULED_FORCED' : 'APPOINTMENT_RESCHEDULED',
+                entity: 'Appointment',
+                entityId: id,
+                before: {
+                  startsAt: appt.startsAt.toISOString(),
+                  endsAt: appt.endsAt.toISOString(),
+                },
+                after: { startsAt: newStartsAt.toISOString(), endsAt: endsAt.toISOString(), force },
+              },
+            });
+
+            return next;
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
+
+        return this.toResponse(updated);
+      } catch (err) {
+        const isSerializationFailure =
+          err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034';
+        if (isSerializationFailure && attempt < MAX_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, 10 + Math.floor(Math.random() * 40)));
+          continue;
+        }
+        if (isSerializationFailure) {
+          throw new ResourceConflictException(
+            'Conflito de concorrência persistente ao remarcar — tente novamente em alguns segundos.',
+          );
+        }
+        throw err;
+      }
+    }
+    throw new ResourceConflictException('Conflito de concorrência inesperado ao remarcar.');
   }
 
   // -------- List / Get --------
@@ -548,14 +688,18 @@ export class AppointmentsService {
       equipmentIds: string[];
       unitTimezone: string;
       now: Date;
+      /** Em remarcações, ignora o próprio agendamento para não contar contra si. */
+      excludeAppointmentId?: string;
     },
   ): Promise<CapacitySnapshot> {
     const activeStatuses = [...ACTIVE_STATUSES_FOR_CAPACITY] as AppointmentStatusDb[];
     const consumeStatuses = [...STATUSES_THAT_CONSUME_QUOTA] as AppointmentStatusDb[];
+    const notSelf = args.excludeAppointmentId ? { id: { not: args.excludeAppointmentId } } : {};
 
     // 1. Capacidade do serviço no slot exato
     const serviceSlotUsage = await tx.appointment.count({
       where: {
+        ...notSelf,
         unitId: args.unitId,
         serviceId: args.serviceId,
         startsAt: args.startsAt,
@@ -568,6 +712,7 @@ export class AppointmentsService {
     if (args.equipmentIds.length > 0) {
       const rows = await tx.appointment.findMany({
         where: {
+          ...notSelf,
           unitId: args.unitId,
           status: { in: activeStatuses },
           startsAt: { lt: args.endsAt },
@@ -589,6 +734,7 @@ export class AppointmentsService {
     // 6. Sobreposição com agendamentos do mesmo paciente
     const patientOverlapping = await tx.appointment.count({
       where: {
+        ...notSelf,
         unitId: args.unitId,
         patientId: args.patientId,
         status: { in: activeStatuses },
@@ -603,6 +749,7 @@ export class AppointmentsService {
       const weekStart = startOfWeekMonday(args.now, args.unitTimezone);
       weeklyUsageForPlan = await tx.appointment.count({
         where: {
+          ...notSelf,
           planId: args.planId,
           status: { in: consumeStatuses },
           consumedSession: true,

@@ -201,6 +201,88 @@ export function validateAppointment(input: ValidateAppointmentInput): Validation
   return null;
 }
 
+export interface ValidateRescheduleInput {
+  now: Date;
+  startsAt: Date;
+  endsAt: Date;
+  service: ServiceInfo;
+  equipmentIds: string[];
+  equipments: EquipmentInfo[];
+  snapshot: CapacitySnapshot;
+}
+
+/**
+ * Validação de remarcação (drag-and-drop na agenda). Diferente de `validateAppointment`:
+ * NÃO revalida saldo/quota do plano, porque a sessão já foi consumida na criação e a
+ * remarcação só move o horário — não consome uma nova. Checa apenas os limites do
+ * §4.3 que dependem do horário de destino: intervalo, serviço ativo, antecedência,
+ * conflito do paciente, capacidade do slot e equipamentos.
+ *
+ * O `snapshot` deve ter sido coletado excluindo o próprio agendamento.
+ */
+export function validateReschedule(input: ValidateRescheduleInput): ValidationFailure | null {
+  const { now, startsAt, endsAt, service, equipmentIds, equipments, snapshot } = input;
+
+  if (startsAt.getTime() >= endsAt.getTime()) {
+    return { code: 'INVALID_INTERVAL', message: 'startsAt deve ser estritamente menor que endsAt' };
+  }
+  const expectedEnd = startsAt.getTime() + service.durationMinutes * 60 * 1000;
+  if (endsAt.getTime() !== expectedEnd) {
+    return {
+      code: 'INVALID_INTERVAL',
+      message: `Duração não bate: serviço exige ${service.durationMinutes} min`,
+    };
+  }
+
+  if (!service.active) {
+    return { code: 'SERVICE_INACTIVE', message: 'Serviço inativo, não aceita agendamentos.' };
+  }
+
+  const earliestStart = now.getTime() + service.schedulingLeadMinutes * 60 * 1000;
+  if (startsAt.getTime() < earliestStart) {
+    return {
+      code: 'LEAD_TIME_VIOLATION',
+      message: `Remarcação exige antecedência mínima de ${service.schedulingLeadMinutes} min.`,
+    };
+  }
+
+  if (snapshot.patientOverlapping > 0) {
+    return {
+      code: 'PATIENT_CONFLICT',
+      message: 'Paciente já tem um agendamento ativo sobrepondo esse horário.',
+    };
+  }
+
+  if (snapshot.serviceSlotUsage + 1 > service.slotCapacity) {
+    return {
+      code: 'SLOT_FULL',
+      message: `Horário lotado para este serviço (capacidade ${service.slotCapacity}).`,
+    };
+  }
+
+  const eqById = new Map(equipments.map((e) => [e.id, e] as const));
+  for (const eqId of equipmentIds) {
+    const inv = eqById.get(eqId);
+    if (!inv) {
+      return {
+        code: 'EQUIPMENT_UNAVAILABLE',
+        message: `Equipamento ${eqId} não encontrado.`,
+        equipmentId: eqId,
+      };
+    }
+    const used = snapshot.equipmentUsage[eqId] ?? 0;
+    if (used + 1 > inv.totalQuantity) {
+      return {
+        code: 'EQUIPMENT_UNAVAILABLE',
+        message: `Sem unidade disponível do equipamento (${eqId}) no horário escolhido.`,
+        equipmentId: eqId,
+      };
+    }
+  }
+
+  return null;
+}
+
 /**
  * Considerar appointment "ativo" para fins de contagem de capacidade.
  * Status CANCELLED não conta. NO_SHOW conta — o paciente reservou o slot.

@@ -83,7 +83,12 @@
       "Bash(pnpm --filter @rpx/admin build)",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('peer react:', d.get\\('peerDependencies',{}\\).get\\('react'\\)\\); print\\('peer react-dom:', d.get\\('peerDependencies',{}\\).get\\('react-dom'\\)\\)\")",
       "Bash(grep -E \" react$| react-dom$\")",
-      "Bash(pnpm config *)"
+      "Bash(pnpm config *)",
+      "Bash(pnpm --filter @rpx/api build)",
+      "Bash(pnpm --filter @rpx/admin add @fullcalendar/react@^6.1.15 @fullcalendar/daygrid@^6.1.15 @fullcalendar/timegrid@^6.1.15 @fullcalendar/interaction@^6.1.15 @fullcalendar/core@^6.1.15)",
+      "Bash(ls node_modules/@fullcalendar/core/locales/pt-br.*)",
+      "Bash(ls node_modules/@fullcalendar/core/index.*)",
+      "Bash(pnpm --filter @rpx/api test -- capacity-validators)"
     ],
     "additionalDirectories": [
       "/Users/augustotelles/projetos/rpxagenda/apps",

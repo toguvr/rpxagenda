@@ -19,14 +19,14 @@ export default function ServicesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-header">
         <div>
           <h1 className="text-2xl font-bold text-brand-black">Serviços</h1>
           <p className="text-sm text-neutral-500">
             {services?.length ?? 0} cadastrado{services?.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <Link href="/services/new" className="btn-primary">
+        <Link href="/services/new" className="btn-primary whitespace-nowrap text-center">
           Novo serviço
         </Link>
       </div>
@@ -44,48 +44,50 @@ export default function ServicesPage() {
           Nenhum serviço cadastrado.
         </div>
       ) : (
-        <table className="table-base">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Tipo</th>
-              <th>Duração</th>
-              <th>Capacidade</th>
-              <th>Plano</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {services.map((s) => (
-              <tr key={s.id}>
-                <td>
-                  <Link
-                    href={`/services/${s.id}/edit`}
-                    className="font-medium text-brand-black hover:text-brand-cyanDark"
-                  >
-                    {s.name}
-                  </Link>
-                </td>
-                <td>{s.type}</td>
-                <td>{s.durationMinutes} min</td>
-                <td>{s.slotCapacity}</td>
-                <td>{s.acceptedPlanType}</td>
-                <td>
-                  <span
-                    className={
-                      'inline-block text-xs px-2 py-0.5 rounded-full font-medium ' +
-                      (s.active
-                        ? 'bg-brand-cyanLight text-brand-cyanDark'
-                        : 'bg-neutral-100 text-neutral-500')
-                    }
-                  >
-                    {s.active ? 'Ativo' : 'Inativo'}
-                  </span>
-                </td>
+        <div className="table-wrap">
+          <table className="table-base">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Tipo</th>
+                <th>Duração</th>
+                <th>Capacidade</th>
+                <th>Plano</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {services.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    <Link
+                      href={`/services/${s.id}/edit`}
+                      className="font-medium text-brand-black hover:text-brand-cyanDark"
+                    >
+                      {s.name}
+                    </Link>
+                  </td>
+                  <td>{s.type}</td>
+                  <td>{s.durationMinutes} min</td>
+                  <td>{s.slotCapacity}</td>
+                  <td>{s.acceptedPlanType}</td>
+                  <td>
+                    <span
+                      className={
+                        'inline-block text-xs px-2 py-0.5 rounded-full font-medium ' +
+                        (s.active
+                          ? 'bg-brand-cyanLight text-brand-cyanDark'
+                          : 'bg-neutral-100 text-neutral-500')
+                      }
+                    >
+                      {s.active ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

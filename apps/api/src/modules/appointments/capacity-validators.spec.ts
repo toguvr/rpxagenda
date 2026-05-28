@@ -1,10 +1,12 @@
 import {
   validateAppointment,
+  validateReschedule,
   type CapacitySnapshot,
   type EquipmentInfo,
   type PlanInfo,
   type ServiceInfo,
   type ValidateAppointmentInput,
+  type ValidateRescheduleInput,
 } from './capacity-validators';
 
 const NOW = new Date('2026-05-19T12:00:00Z');
@@ -219,6 +221,83 @@ describe('validateAppointment', () => {
           equipmentIds: ['eq_maca'],
           snapshot: { ...emptySnapshot, equipmentUsage: { eq_maca: 2 } },
         }),
+      ),
+    ).toBeNull();
+  });
+});
+
+function buildReschedule(
+  overrides: Partial<ValidateRescheduleInput> = {},
+): ValidateRescheduleInput {
+  return {
+    now: NOW,
+    startsAt: STARTS,
+    endsAt: ENDS,
+    service: baseService,
+    equipmentIds: [],
+    equipments: baseEquipments,
+    snapshot: emptySnapshot,
+    ...overrides,
+  };
+}
+
+describe('validateReschedule', () => {
+  it('caso feliz → null', () => {
+    expect(validateReschedule(buildReschedule())).toBeNull();
+  });
+
+  it('INVALID_INTERVAL quando duração não bate com o serviço', () => {
+    const wrongEnd = new Date(STARTS.getTime() + 30 * 60 * 1000);
+    const f = validateReschedule(buildReschedule({ endsAt: wrongEnd }));
+    expect(f?.code).toBe('INVALID_INTERVAL');
+  });
+
+  it('SERVICE_INACTIVE quando serviço desativado', () => {
+    const f = validateReschedule(buildReschedule({ service: { ...baseService, active: false } }));
+    expect(f?.code).toBe('SERVICE_INACTIVE');
+  });
+
+  it('LEAD_TIME_VIOLATION quando novo horário fere a antecedência mínima', () => {
+    const tooSoon = new Date(NOW.getTime() + 30 * 60 * 1000);
+    const f = validateReschedule(
+      buildReschedule({
+        startsAt: tooSoon,
+        endsAt: new Date(tooSoon.getTime() + 50 * 60 * 1000),
+      }),
+    );
+    expect(f?.code).toBe('LEAD_TIME_VIOLATION');
+  });
+
+  it('SLOT_FULL quando capacidade do serviço esgotada', () => {
+    const f = validateReschedule(
+      buildReschedule({ snapshot: { ...emptySnapshot, serviceSlotUsage: 5 } }),
+    );
+    expect(f?.code).toBe('SLOT_FULL');
+  });
+
+  it('PATIENT_CONFLICT quando paciente já tem agendamento sobreposto', () => {
+    const f = validateReschedule(
+      buildReschedule({ snapshot: { ...emptySnapshot, patientOverlapping: 1 } }),
+    );
+    expect(f?.code).toBe('PATIENT_CONFLICT');
+  });
+
+  it('EQUIPMENT_UNAVAILABLE quando inventário do equipamento está cheio', () => {
+    const f = validateReschedule(
+      buildReschedule({
+        equipmentIds: ['eq_bola'],
+        snapshot: { ...emptySnapshot, equipmentUsage: { eq_bola: 1 } },
+      }),
+    );
+    expect(f?.code).toBe('EQUIPMENT_UNAVAILABLE');
+  });
+
+  it('NÃO revalida saldo/quota do plano (remarcação não reconsome a sessão)', () => {
+    // Diferente de validateAppointment: mesmo com o slot cheio de uso do plano,
+    // reschedule só olha capacidade/horário — passa porque a sessão já foi consumida.
+    expect(
+      validateReschedule(
+        buildReschedule({ snapshot: { ...emptySnapshot, weeklyUsageForPlan: 99 } }),
       ),
     ).toBeNull();
   });

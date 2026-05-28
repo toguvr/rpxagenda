@@ -25,6 +25,18 @@ export const cancelAppointmentRequestSchema = z.object({
 });
 export type CancelAppointmentRequest = z.infer<typeof cancelAppointmentRequestSchema>;
 
+/**
+ * Remarcação de horário (drag-and-drop na agenda do admin). Revalida os limites
+ * de capacidade do §4.3 para o novo horário (excluindo o próprio agendamento).
+ * `force: true` permite ao admin remarcar mesmo violando a capacidade — a ação
+ * é auditada como remarcação forçada.
+ */
+export const rescheduleAppointmentRequestSchema = z.object({
+  startsAt: z.coerce.date(),
+  force: z.boolean().default(false),
+});
+export type RescheduleAppointmentRequest = z.infer<typeof rescheduleAppointmentRequestSchema>;
+
 export const appointmentResponseSchema = z.object({
   id: cuidSchema,
   unitId: cuidSchema,

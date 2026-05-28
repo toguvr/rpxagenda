@@ -12,6 +12,11 @@
     "test": "echo 'admin: sem unit tests por enquanto (UI ainda em bootstrap)'"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/react": "^6.1.20",
+    "@fullcalendar/timegrid": "^6.1.20",
     "@rpx/shared": "workspace:*",
     "next": "^15.1.6",
     "react": "^19.0.0",

@@ -139,7 +139,7 @@ export default function NewAppointmentPage() {
 
       <div className="space-y-4 max-w-2xl">
         <Card title="1. Paciente e serviço">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">Paciente *</label>
               <select
