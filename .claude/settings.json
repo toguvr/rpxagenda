@@ -101,7 +101,15 @@
       "Bash(echo \"root:        $\\(curl -s -o /dev/null -w '%{http_code}' https://rpxagenda.togu.dev/\\)\")",
       "Bash(curl -s -o /dev/null -w '%{http_code}' https://rpxagenda.togu.dev/plans)",
       "Bash(echo \"GET /plans:  $\\(curl -s -o /dev/null -w '%{http_code}' https://rpxagenda.togu.dev/plans\\)  \\(esperado 401 = rota existe\\)\")",
-      "Bash(curl -s -o /dev/null -w '%{http_code}' https://rpxagenda.togu.dev/patients)"
+      "Bash(curl -s -o /dev/null -w '%{http_code}' https://rpxagenda.togu.dev/patients)",
+      "Bash(command -v jq)",
+      "Bash(jq --version)",
+      "Bash(bash -n scripts/deploy-api.sh)",
+      "Bash(./scripts/deploy-api.sh --help)",
+      "Bash(jq --arg img \":rpx-api.api.99\" '.api.image = $img' deploy/containers.json | jq -r '{image: .api.image, env_keys: \\(.api.environment | keys\\)}')",
+      "Read(//Users/augustotelles/projetos/rpxagenda/**)",
+      "Bash(awk '/^model ScheduleException /,/^}/' apps/api/prisma/schema.prisma)",
+      "Bash(awk '/^model Service /,/^}/' apps/api/prisma/schema.prisma)"
     ],
     "additionalDirectories": [
       "/Users/augustotelles/projetos/rpxagenda/apps",

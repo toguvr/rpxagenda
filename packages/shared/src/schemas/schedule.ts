@@ -47,6 +47,8 @@ export const createScheduleExceptionRequestSchema = z
   .object({
     date: z.coerce.date(),
     type: z.nativeEnum(ScheduleExceptionType),
+    /** null/omitido = unidade inteira; setado = só este serviço. */
+    serviceId: cuidSchema.optional(),
     opensAt: timeOfDaySchema.optional(),
     closesAt: timeOfDaySchema.optional(),
     reason: z.string().trim().max(200).optional(),
@@ -75,6 +77,8 @@ export type CreateScheduleExceptionRequest = z.infer<typeof createScheduleExcept
 export const scheduleExceptionResponseSchema = z.object({
   id: cuidSchema,
   unitId: cuidSchema,
+  /** null = unidade inteira; setado = exceção só deste serviço. */
+  serviceId: cuidSchema.nullable(),
   date: z.coerce.date(),
   type: z.nativeEnum(ScheduleExceptionType),
   opensAt: z.string().nullable(),

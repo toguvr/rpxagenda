@@ -1,0 +1,12 @@
+{
+  "containerName": "api",
+  "containerPort": 3333,
+  "healthCheck": {
+    "path": "/",
+    "successCodes": "200-499",
+    "intervalSeconds": 10,
+    "timeoutSeconds": 2,
+    "healthyThreshold": 2,
+    "unhealthyThreshold": 5
+  }
+}

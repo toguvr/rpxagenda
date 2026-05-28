@@ -21,6 +21,11 @@ export class BusinessHoursResponseDto {
 export class CreateScheduleExceptionDto {
   @ApiProperty({ type: String, format: 'date', example: '2026-12-25' }) date!: string;
   @ApiProperty({ enum: ['CLOSED', 'CUSTOM'] }) type!: string;
+  @ApiProperty({
+    required: false,
+    description: 'null/omitido = unidade inteira; setado = só este serviço.',
+  })
+  serviceId?: string;
   @ApiProperty({ required: false, example: '14:00' }) opensAt?: string;
   @ApiProperty({ required: false, example: '18:00' }) closesAt?: string;
   @ApiProperty({ required: false }) reason?: string;
@@ -29,6 +34,8 @@ export class CreateScheduleExceptionDto {
 export class ScheduleExceptionResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() unitId!: string;
+  @ApiProperty({ nullable: true, description: 'null = unidade inteira; setado = só este serviço.' })
+  serviceId!: string | null;
   @ApiProperty({ type: String, format: 'date' }) date!: Date;
   @ApiProperty({ enum: ['CLOSED', 'CUSTOM'] }) type!: string;
   @ApiProperty({ nullable: true }) opensAt!: string | null;

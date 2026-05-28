@@ -51,10 +51,26 @@ export class SchedulesService {
   // ---------- ScheduleException (por unidade) ----------
 
   async createException(data: CreateScheduleExceptionRequest): Promise<ScheduleExceptionRow> {
+    if (data.serviceId) {
+      await this.assertServiceExists(data.serviceId);
+    }
+    // Guarda contra duplicidade (o índice único cobre serviceId não-nulo; aqui também
+    // cobrimos o caso unidade-inteira, em que NULLs são distintos no índice do Postgres).
+    const existing = await this.prisma.scoped.scheduleException.findFirst({
+      where: { date: data.date, serviceId: data.serviceId ?? null },
+    });
+    if (existing) {
+      throw new ResourceConflictException(
+        data.serviceId
+          ? 'Já existe uma exceção para esse serviço nessa data.'
+          : 'Já existe uma exceção da unidade inteira nessa data.',
+      );
+    }
     try {
       return await this.prisma.scoped.scheduleException.create({
         data: {
           date: data.date,
+          serviceId: data.serviceId ?? null,
           type: data.type,
           opensAt: data.opensAt ?? null,
           closesAt: data.closesAt ?? null,
@@ -63,9 +79,7 @@ export class SchedulesService {
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw new ResourceConflictException(
-          'Já existe uma exceção cadastrada para essa data nesta unidade.',
-        );
+        throw new ResourceConflictException('Já existe uma exceção cadastrada para essa data.');
       }
       throw err;
     }
@@ -144,10 +158,11 @@ export class SchedulesService {
 
   /**
    * Janelas de funcionamento aplicáveis a um serviço numa data:
-   * - Se houver `ScheduleException` da unidade para a data:
-   *   - tipo CLOSED → sem janelas (todos os serviços ficam sem slots no dia).
-   *   - tipo CUSTOM → usa opensAt/closesAt da exceção; aplica para todos os serviços.
-   * - Caso contrário → BusinessHours do (serviceId, weekday) — específico do serviço.
+   * - Exceções de calendário têm precedência. Entre elas, a mais específica vence:
+   *   uma exceção do próprio serviço sobrepõe a da unidade inteira.
+   *   - tipo CLOSED → sem janelas (serviço fica sem slots no dia).
+   *   - tipo CUSTOM → usa opensAt/closesAt da exceção.
+   * - Sem exceção aplicável → BusinessHours do (serviceId, weekday).
    */
   private async windowsForService(
     serviceId: string,
@@ -160,9 +175,13 @@ export class SchedulesService {
     const d = localCal.getDate();
     const dayOnlyUtc = new Date(Date.UTC(y, m, d, 0, 0, 0));
 
-    const exception = await this.prisma.scoped.scheduleException.findFirst({
-      where: { date: dayOnlyUtc },
+    const exceptions = await this.prisma.scoped.scheduleException.findMany({
+      where: { date: dayOnlyUtc, OR: [{ serviceId: null }, { serviceId }] },
     });
+    // Mais específica primeiro: exceção do serviço > exceção da unidade inteira.
+    const exception =
+      exceptions.find((e) => e.serviceId === serviceId) ??
+      exceptions.find((e) => e.serviceId === null);
 
     if (exception) {
       if (exception.type === 'CLOSED') return [];

@@ -160,6 +160,7 @@ model Service {
   plans              Plan[]
   businessHours      BusinessHours[]
   appointments       Appointment[]
+  scheduleExceptions ScheduleException[]
 
   @@unique([unitId, name])
   @@index([unitId, active])
@@ -307,6 +308,8 @@ model BusinessHours {
 model ScheduleException {
   id        String                @id @default(cuid())
   unitId    String
+  // null = unidade inteira; setado = exceção só para este serviço.
+  serviceId String?
   date      DateTime              @db.Date   // dia específico (sem hora), no fuso da unidade
   type      ScheduleExceptionType
   opensAt   String?
@@ -315,9 +318,10 @@ model ScheduleException {
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt
 
-  unit Unit @relation(fields: [unitId], references: [id])
+  unit    Unit     @relation(fields: [unitId], references: [id])
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
-  @@unique([unitId, date])
+  @@unique([unitId, date, serviceId])
   @@index([unitId, date])
   @@map("schedule_exceptions")
 }

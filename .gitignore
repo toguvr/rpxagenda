@@ -14,6 +14,10 @@ build/
 .env.local
 .env.*.local
 
+# Deploy: config real do container (contém segredos) — fica fora do git.
+# Versione apenas deploy/containers.example.json e deploy/endpoint.json.
+deploy/containers.json
+
 # Logs
 logs/
 *.log
