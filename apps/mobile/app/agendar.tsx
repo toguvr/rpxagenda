@@ -111,6 +111,23 @@ export default function AgendarScreen() {
     }
   }, [plansQuery.data, planId]);
 
+  const availableDaysQuery = useQuery({
+    queryKey: ['available-days', selectedPlan?.serviceId, days[0].iso],
+    queryFn: () =>
+      api<{ timezone: string; serviceId: string; days: string[] }>(
+        `/schedules/available-days?serviceId=${selectedPlan!.serviceId}&from=${days[0].iso}&to=${days[days.length - 1].iso}`,
+      ),
+    enabled: !!selectedPlan,
+  });
+  const availableDaySet = useMemo(
+    () => new Set(availableDaysQuery.data?.days ?? []),
+    [availableDaysQuery.data],
+  );
+  const availableDays = useMemo(
+    () => days.filter((d) => availableDaySet.has(d.iso)),
+    [days, availableDaySet],
+  );
+
   const slotsQuery = useQuery({
     queryKey: ['slots', selectedPlan?.serviceId, date],
     queryFn: () =>
@@ -233,48 +250,61 @@ export default function AgendarScreen() {
           summary={selectedDay?.summary}
           onReopen={() => setOpenStep(2)}
         >
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="-mx-4"
-            contentContainerClassName="gap-2 px-4"
-          >
-            {days.map((d, i) => {
-              const active = d.iso === date;
-              const tag = i === 0 ? 'HOJE' : i === 1 ? 'AMANHÃ' : d.weekday;
-              return (
-                <Pressable
-                  key={d.iso}
-                  onPress={() => selectDate(d.iso)}
-                  className={`w-[66px] items-center rounded-2xl border py-3 ${
-                    active ? 'border-brand-cyan bg-brand-cyan' : 'border-slate-200 bg-white'
-                  }`}
-                >
-                  <Text
-                    className={`text-[10px] font-bold ${
-                      active ? 'text-white/80' : 'text-slate-400'
+          {availableDaysQuery.isLoading ? (
+            <ActivityIndicator color="#00BCD4" className="my-2" />
+          ) : availableDaysQuery.isError ? (
+            <Notice icon="alert-circle" tone="danger" text="Falha ao carregar os dias." />
+          ) : availableDays.length === 0 ? (
+            <Notice
+              icon="calendar-clear-outline"
+              tone="neutral"
+              text="Nenhum dia com horário disponível nos próximos dias. Fale com a recepção."
+            />
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="-mx-4"
+              contentContainerClassName="gap-2 px-4"
+            >
+              {availableDays.map((d) => {
+                const active = d.iso === date;
+                const tag =
+                  d.iso === days[0].iso ? 'HOJE' : d.iso === days[1].iso ? 'AMANHÃ' : d.weekday;
+                return (
+                  <Pressable
+                    key={d.iso}
+                    onPress={() => selectDate(d.iso)}
+                    className={`w-[66px] items-center rounded-2xl border py-3 ${
+                      active ? 'border-brand-cyan bg-brand-cyan' : 'border-slate-200 bg-white'
                     }`}
                   >
-                    {tag}
-                  </Text>
-                  <Text
-                    className={`my-0.5 text-xl font-extrabold ${
-                      active ? 'text-white' : 'text-brand-ink'
-                    }`}
-                  >
-                    {d.dayNum}
-                  </Text>
-                  <Text
-                    className={`text-[10px] font-semibold ${
-                      active ? 'text-white/80' : 'text-slate-400'
-                    }`}
-                  >
-                    {d.month}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+                    <Text
+                      className={`text-[10px] font-bold ${
+                        active ? 'text-white/80' : 'text-slate-400'
+                      }`}
+                    >
+                      {tag}
+                    </Text>
+                    <Text
+                      className={`my-0.5 text-xl font-extrabold ${
+                        active ? 'text-white' : 'text-brand-ink'
+                      }`}
+                    >
+                      {d.dayNum}
+                    </Text>
+                    <Text
+                      className={`text-[10px] font-semibold ${
+                        active ? 'text-white/80' : 'text-slate-400'
+                      }`}
+                    >
+                      {d.month}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
         </StepCard>
 
         {/* Passo 3 — horário */}

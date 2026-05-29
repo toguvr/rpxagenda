@@ -136,6 +136,43 @@ export class SchedulesService {
     return { date: dateString, timezone, serviceId, slots };
   }
 
+  /**
+   * Dias (YYYY-MM-DD) no intervalo [from, to] em que o serviço tem ao menos um
+   * slot gerável (mesma semântica de getSlots: janelas de funcionamento + lead,
+   * sem considerar capacidade/lotação). Usado pelo app para só mostrar dias com
+   * horário no seletor de data.
+   */
+  async getAvailableDays(
+    serviceId: string,
+    fromString: string,
+    toString: string,
+  ): Promise<{ timezone: string; serviceId: string; days: string[] }> {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fromString) || !/^\d{4}-\d{2}-\d{2}$/.test(toString)) {
+      throw new Error('from/to devem estar em YYYY-MM-DD');
+    }
+    const service = await this.prisma.scoped.service.findFirst({ where: { id: serviceId } });
+    if (!service) throw new ResourceNotFoundException('Serviço');
+
+    const timezone = await this.unitTimezone();
+    const days: string[] = [];
+    if (!service.active) return { timezone, serviceId, days };
+
+    for (const dateString of enumerateDates(fromString, toString)) {
+      const dateInUnitTz = fromZonedTime(`${dateString}T12:00:00`, timezone);
+      const windows = await this.windowsForService(serviceId, dateInUnitTz, timezone);
+      if (windows.length === 0) continue;
+      const slots = generateSlots({
+        date: dateInUnitTz,
+        timezone,
+        serviceDurationMinutes: service.durationMinutes,
+        schedulingLeadMinutes: service.schedulingLeadMinutes,
+        windows,
+      });
+      if (slots.length > 0) days.push(dateString);
+    }
+    return { timezone, serviceId, days };
+  }
+
   // ---------- helpers ----------
 
   private async assertServiceExists(serviceId: string): Promise<void> {
@@ -195,4 +232,18 @@ export class SchedulesService {
     });
     return hours.map((h) => ({ opensAt: h.opensAt, closesAt: h.closesAt }));
   }
+}
+
+/** Lista de datas YYYY-MM-DD de `from` a `to` (inclusive). Âncora ao meio-dia UTC evita deslize por DST. */
+function enumerateDates(fromString: string, toString: string): string[] {
+  const [fy, fm, fd] = fromString.split('-').map(Number);
+  const [ty, tm, td] = toString.split('-').map(Number);
+  let cur = Date.UTC(fy, fm - 1, fd, 12, 0, 0);
+  const end = Date.UTC(ty, tm - 1, td, 12, 0, 0);
+  const out: string[] = [];
+  for (let guard = 0; cur <= end && guard < 120; guard++) {
+    out.push(new Date(cur).toISOString().slice(0, 10));
+    cur += 86_400_000;
+  }
+  return out;
 }

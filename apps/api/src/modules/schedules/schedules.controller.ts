@@ -31,6 +31,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { ZodValidationPipe } from '../auth/pipes/zod-validation.pipe';
 import { SchedulesService } from './schedules.service';
 import {
+  AvailableDaysResponseDto,
   BusinessHoursResponseDto,
   CreateBusinessHoursDto,
   CreateScheduleExceptionDto,
@@ -127,6 +128,28 @@ export class SchedulesController {
     @Query('date') date: string,
   ): Promise<SlotsResponseDto> {
     return this.schedules.getSlots(serviceId, date) as Promise<SlotsResponseDto>;
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL, UserRole.PATIENT)
+  @Get('schedules/available-days')
+  @ApiOperation({
+    summary:
+      'Dias (YYYY-MM-DD) no intervalo [from, to] em que o serviço tem ao menos um horário gerável.',
+  })
+  @ApiQuery({ name: 'serviceId', required: true })
+  @ApiQuery({ name: 'from', required: true, type: String, example: '2026-05-29' })
+  @ApiQuery({ name: 'to', required: true, type: String, example: '2026-06-11' })
+  @ApiOkResponse({ type: AvailableDaysResponseDto })
+  getAvailableDays(
+    @Query('serviceId') serviceId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ): Promise<AvailableDaysResponseDto> {
+    return this.schedules.getAvailableDays(
+      serviceId,
+      from,
+      to,
+    ) as Promise<AvailableDaysResponseDto>;
   }
 
   static _swaggerHints: [CreateBusinessHoursDto, CreateScheduleExceptionDto] = [

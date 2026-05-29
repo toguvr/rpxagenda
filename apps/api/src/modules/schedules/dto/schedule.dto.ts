@@ -58,3 +58,10 @@ export class SlotsResponseDto {
   @ApiProperty() serviceId!: string;
   @ApiProperty({ type: SlotDto, isArray: true }) slots!: SlotDto[];
 }
+
+export class AvailableDaysResponseDto {
+  @ApiProperty() timezone!: string;
+  @ApiProperty() serviceId!: string;
+  @ApiProperty({ type: String, isArray: true, example: ['2026-05-29', '2026-05-30'] })
+  days!: string[];
+}
