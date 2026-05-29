@@ -27,8 +27,17 @@ export default function DashboardPage() {
   }
   if (!data) return <div className="text-neutral-400">Carregando indicadores…</div>;
 
-  const { today, patients, plans, attendance30d, last7Days, byService, alerts } = data;
-  const { topNoShow, inactiveWithActivePlan } = data;
+  // Defaults defensivos: se a API estiver numa versão sem algum campo (descompasso
+  // admin↔API), evita derrubar a página inteira por um `.length` em undefined.
+  const { today, patients, plans, attendance30d } = data;
+  const last7Days = data.last7Days ?? [];
+  const byService = data.byService ?? [];
+  const topNoShow = data.topNoShow ?? [];
+  const inactiveWithActivePlan = data.inactiveWithActivePlan ?? [];
+  const alerts = {
+    expiringPlans: data.alerts?.expiringPlans ?? [],
+    lowBalancePlans: data.alerts?.lowBalancePlans ?? [],
+  };
   const pending = plans.pendingPayment + plans.pastDue;
 
   return (
