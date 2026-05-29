@@ -19,7 +19,7 @@ export default function Index() {
         <StatusBar style="dark" />
         <Image source={emblem} className="h-24 w-24" resizeMode="contain" />
         <Text className="mt-4 text-xl font-extrabold tracking-tight text-brand-ink">
-          RPX Expert
+          RPX Agenda
         </Text>
         <ActivityIndicator color="#00BCD4" className="mt-8" />
       </View>
