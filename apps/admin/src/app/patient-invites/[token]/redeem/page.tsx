@@ -63,7 +63,7 @@ export default function RedeemInvitePage({ params }: { params: Promise<{ token: 
             <span className="text-white font-bold text-xl">R</span>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-brand-black">RPX Expert</h1>
+            <h1 className="text-xl font-bold text-brand-black">RPX Agenda</h1>
             <p className="text-sm text-neutral-500">Criar acesso</p>
           </div>
         </div>
@@ -78,7 +78,7 @@ export default function RedeemInvitePage({ params }: { params: Promise<{ token: 
               Senha criada com sucesso!
             </div>
             <p className="text-sm text-neutral-600">
-              Agora é só entrar no app RPX Expert com o e-mail{' '}
+              Agora é só entrar no app RPX Agenda com o e-mail{' '}
               <strong>{lookup?.patient.email}</strong> e a senha que você acabou de definir.
             </p>
           </div>

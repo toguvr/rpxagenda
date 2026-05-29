@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'RPX Expert — Admin',
-  description: 'Painel administrativo da RPX Expert',
+  title: 'RPX Agenda — Admin',
+  description: 'Painel administrativo da RPX Agenda',
 };
 
 // Admin é 100% dinâmico (auth client-side via token, dados sempre da API).

@@ -2,7 +2,7 @@
   "name": "@rpx/admin",
   "version": "0.1.0",
   "private": true,
-  "description": "Painel admin (Next.js App Router) — RPX Expert.",
+  "description": "Painel admin (Next.js App Router) — RPX Agenda.",
   "scripts": {
     "dev": "next dev -p 4000",
     "build": "next build",

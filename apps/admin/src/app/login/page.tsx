@@ -39,7 +39,7 @@ export default function LoginPage() {
             <span className="text-white font-bold text-xl">R</span>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-brand-black">RPX Expert</h1>
+            <h1 className="text-2xl font-bold text-brand-black">RPX Agenda</h1>
             <p className="text-sm text-neutral-500">Painel administrativo</p>
           </div>
         </div>
