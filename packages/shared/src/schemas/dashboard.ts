@@ -36,6 +36,15 @@ export interface DashboardSummary {
   last7Days: { date: string; count: number }[];
   /** Agendamentos por serviço no mês corrente. */
   byService: { service: string; count: number }[];
+  /** Aniversariantes da semana corrente (segunda→domingo, fuso da unidade). */
+  birthdaysThisWeek: {
+    patientId: string;
+    patientName: string;
+    /** Data de nascimento (ISO). */
+    birthDate: string;
+    /** Data do aniversário nesta semana (YYYY-MM-DD), para ordenar/exibir. */
+    date: string;
+  }[];
   /** Ranking de pacientes com mais faltas (NO_SHOW) nos últimos 60 dias. */
   topNoShow: { patientId: string; patientName: string; noShowCount: number }[];
   /**

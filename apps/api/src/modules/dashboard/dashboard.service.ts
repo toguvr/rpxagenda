@@ -4,6 +4,7 @@ import { fromZonedTime } from 'date-fns-tz';
 import type { DashboardSummary } from '@rpx/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CLS_KEYS } from '../../common/cls/cls-keys';
+import { startOfWeekMonday } from '../schedules/slot-generator';
 
 @Injectable()
 export class DashboardService {
@@ -43,6 +44,7 @@ export class DashboardService {
       last7Appts,
       monthAppts,
       noShow60Appts,
+      allPatients,
     ] = await Promise.all([
       this.prisma.appointment.findMany({
         where: { unitId, startsAt: { gte: todayStart, lt: todayEnd } },
@@ -84,6 +86,10 @@ export class DashboardService {
       this.prisma.appointment.findMany({
         where: { unitId, status: 'NO_SHOW', startsAt: { gte: sixtyAgo } },
         select: { patientId: true, patient: { select: { fullName: true } } },
+      }),
+      this.prisma.patient.findMany({
+        where: { unitId },
+        select: { id: true, fullName: true, birthDate: true },
       }),
     ]);
 
@@ -170,6 +176,30 @@ export class DashboardService {
 
     const rate = completed30 + noShow30 > 0 ? completed30 / (completed30 + noShow30) : 0;
 
+    // Aniversariantes da semana (segunda→domingo no fuso da unidade).
+    // Mapeia cada dia da semana corrente para "MM-DD" → data ISO daquele dia.
+    const weekStart = startOfWeekMonday(now, tz);
+    const weekDayByMonthDay = new Map<string, string>();
+    for (let i = 0; i < 7; i++) {
+      const ymd = new Date(weekStart.getTime() + i * 86_400_000).toLocaleDateString('en-CA', {
+        timeZone: tz,
+      });
+      weekDayByMonthDay.set(ymd.slice(5), ymd); // "MM-DD" → "YYYY-MM-DD"
+    }
+    const birthdaysThisWeek = allPatients
+      .map((p) => {
+        const bd = p.birthDate;
+        const mmdd = `${String(bd.getUTCMonth() + 1).padStart(2, '0')}-${String(
+          bd.getUTCDate(),
+        ).padStart(2, '0')}`;
+        const date = weekDayByMonthDay.get(mmdd);
+        return date
+          ? { patientId: p.id, patientName: p.fullName, birthDate: bd.toISOString(), date }
+          : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
     // Ranking 1: pacientes que mais faltam (NO_SHOW nos últimos 60 dias).
     const noShowCounts = new Map<string, { name: string; count: number }>();
     for (const a of noShow60Appts) {
@@ -224,6 +254,7 @@ export class DashboardService {
       attendance30d: { completed: completed30, noShow: noShow30, rate },
       last7Days,
       byService,
+      birthdaysThisWeek,
       topNoShow,
       inactiveWithActivePlan,
       alerts: {

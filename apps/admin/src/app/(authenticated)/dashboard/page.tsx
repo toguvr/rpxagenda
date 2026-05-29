@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const byService = data.byService ?? [];
   const topNoShow = data.topNoShow ?? [];
   const inactiveWithActivePlan = data.inactiveWithActivePlan ?? [];
+  const birthdaysThisWeek = data.birthdaysThisWeek ?? [];
   const alerts = {
     expiringPlans: data.alerts?.expiringPlans ?? [],
     lowBalancePlans: data.alerts?.lowBalancePlans ?? [],
@@ -91,6 +92,29 @@ export default function DashboardPage() {
           <StatChip label="Faltas" value={today.noShow} tone="red" />
           <StatChip label="Cancelados" value={today.cancelled} />
         </div>
+      </Card>
+
+      {/* Aniversariantes da semana */}
+      <Card title={`Aniversariantes da semana (${birthdaysThisWeek.length})`}>
+        {birthdaysThisWeek.length === 0 ? (
+          <p className="text-sm text-neutral-400">Nenhum aniversariante esta semana.</p>
+        ) : (
+          <ul className="divide-y divide-neutral-100">
+            {birthdaysThisWeek.map((b) => (
+              <li key={b.patientId}>
+                <Link
+                  href={`/patients/${b.patientId}`}
+                  className="-mx-2 flex items-center justify-between gap-3 rounded px-2 py-2 text-sm hover:bg-neutral-50"
+                >
+                  <span className="truncate font-medium text-brand-black">{b.patientName}</span>
+                  <span className="whitespace-nowrap rounded-full bg-brand-cyanLight px-2 py-0.5 text-xs font-medium text-brand-cyanDark">
+                    {formatBirthday(b.date)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -323,4 +347,11 @@ function weekday(date: string): string {
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+}
+
+// date = "YYYY-MM-DD" do aniversário nesta semana. Mostra "seg 02/06".
+function formatBirthday(date: string): string {
+  return new Date(`${date}T12:00:00`)
+    .toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })
+    .replace('.', '');
 }
