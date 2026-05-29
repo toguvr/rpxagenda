@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { PatientResponse, PlanResponse, ServiceResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 import { Modal } from './Modal';
+import { SearchableSelect } from './SearchableSelect';
 
 /**
  * Modal de criação de plano. O tipo do plano é derivado do serviço escolhido
@@ -97,39 +98,31 @@ export function CreatePlanModal({
         {showPatientPicker && (
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">Paciente *</label>
-            <select
+            <SearchableSelect
               value={selectedPatientId}
-              onChange={(e) => setSelectedPatientId(e.target.value)}
-              className="input"
-            >
-              <option value="">Selecione…</option>
-              {(patients ?? [])
-                .slice()
-                .sort((a, b) => a.fullName.localeCompare(b.fullName))
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.fullName}
-                  </option>
-                ))}
-            </select>
+              onChange={setSelectedPatientId}
+              options={[
+                { value: '', label: 'Selecione…' },
+                ...(patients ?? [])
+                  .slice()
+                  .sort((a, b) => a.fullName.localeCompare(b.fullName))
+                  .map((p) => ({ value: p.id, label: p.fullName })),
+              ]}
+            />
           </div>
         )}
         <div>
           <label className="block text-sm font-medium text-neutral-700 mb-1">Serviço *</label>
-          <select
+          <SearchableSelect
             value={serviceId}
-            onChange={(e) => setServiceId(e.target.value)}
-            className="input"
-          >
-            <option value="">Selecione…</option>
-            {services
-              .filter((s) => s.active)
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.acceptedPlanType})
-                </option>
-              ))}
-          </select>
+            onChange={setServiceId}
+            options={[
+              { value: '', label: 'Selecione…' },
+              ...services
+                .filter((s) => s.active)
+                .map((s) => ({ value: s.id, label: `${s.name} (${s.acceptedPlanType})` })),
+            ]}
+          />
         </div>
 
         {planType === 'PACKAGE' && (

@@ -14,6 +14,7 @@ import type {
 } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 import { Card } from '@/components/Card';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 interface SlotsResponse {
   date: string;
@@ -217,33 +218,28 @@ export default function NewAppointmentPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">Paciente *</label>
-              <select
+              <SearchableSelect
                 value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
-                className="input"
-              >
-                <option value="">Selecione…</option>
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.fullName}
-                  </option>
-                ))}
-              </select>
+                onChange={setPatientId}
+                options={[
+                  { value: '', label: 'Selecione…' },
+                  ...patients.map((p) => ({ value: p.id, label: p.fullName })),
+                ]}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">Serviço *</label>
-              <select
+              <SearchableSelect
                 value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-                className="input"
-              >
-                <option value="">Selecione…</option>
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.durationMinutes}min · {s.acceptedPlanType})
-                  </option>
-                ))}
-              </select>
+                onChange={setServiceId}
+                options={[
+                  { value: '', label: 'Selecione…' },
+                  ...services.map((s) => ({
+                    value: s.id,
+                    label: `${s.name} (${s.durationMinutes}min · ${s.acceptedPlanType})`,
+                  })),
+                ]}
+              />
             </div>
           </div>
         </Card>
@@ -275,16 +271,20 @@ export default function NewAppointmentPage() {
                   : ' Crie um plano antes de agendar.'}
               </div>
             ) : (
-              <select value={planId} onChange={(e) => setPlanId(e.target.value)} className="input">
-                <option value="">Selecione o plano…</option>
-                {eligiblePlans.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.type === 'PACKAGE'
-                      ? `Pacote — ${p.remainingSessions ?? 0}/${p.totalSessions ?? 0} sessões`
-                      : `Assinatura — ${p.weeklyUsage ?? 0}/${p.weeklyQuota ?? 0} na semana`}
-                  </option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={planId}
+                onChange={setPlanId}
+                options={[
+                  { value: '', label: 'Selecione o plano…' },
+                  ...eligiblePlans.map((p) => ({
+                    value: p.id,
+                    label:
+                      p.type === 'PACKAGE'
+                        ? `Pacote — ${p.remainingSessions ?? 0}/${p.totalSessions ?? 0} sessões`
+                        : `Assinatura — ${p.weeklyUsage ?? 0}/${p.weeklyQuota ?? 0} na semana`,
+                  })),
+                ]}
+              />
             )}
           </Card>
         )}

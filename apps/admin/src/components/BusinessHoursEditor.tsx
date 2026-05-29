@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { BusinessHoursResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
+import { SearchableSelect } from './SearchableSelect';
 
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'] as const;
 
@@ -106,17 +107,11 @@ export function BusinessHoursEditor({ serviceId }: { serviceId: string }) {
       <div className="flex items-end gap-2 pt-2 border-t border-neutral-100">
         <div>
           <label className="block text-xs font-medium text-neutral-600 mb-1">Dia</label>
-          <select
-            value={weekday}
-            onChange={(e) => setWeekday(Number(e.target.value))}
-            className="input"
-          >
-            {WEEKDAYS.map((label, wd) => (
-              <option key={wd} value={wd}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            value={String(weekday)}
+            onChange={(v) => setWeekday(Number(v))}
+            options={WEEKDAYS.map((label, wd) => ({ value: String(wd), label }))}
+          />
         </div>
         <div>
           <label className="block text-xs font-medium text-neutral-600 mb-1">Abre</label>

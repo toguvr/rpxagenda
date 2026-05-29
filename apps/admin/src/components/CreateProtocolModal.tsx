@@ -11,6 +11,7 @@ import type {
 } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 import { Modal } from './Modal';
+import { SearchableSelect } from './SearchableSelect';
 
 /**
  * Modal de registro da avaliação clínica (protocolo). O profissional define
@@ -117,30 +118,32 @@ export function CreateProtocolModal({
           <label className="block text-sm font-medium text-neutral-700 mb-1">
             Plano (opcional)
           </label>
-          <select value={planId} onChange={(e) => setPlanId(e.target.value)} className="input">
-            <option value="">— Sem plano (avaliação avulsa) —</option>
-            {plans.map((p) => (
-              <option key={p.id} value={p.id}>
-                {services.get(p.serviceId)?.name ?? p.serviceId.slice(0, 8)} · {p.type} · {p.status}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            value={planId}
+            onChange={setPlanId}
+            options={[
+              { value: '', label: '— Sem plano (avaliação avulsa) —' },
+              ...plans.map((p) => ({
+                value: p.id,
+                label: `${services.get(p.serviceId)?.name ?? p.serviceId.slice(0, 8)} · ${p.type} · ${p.status}`,
+              })),
+            ]}
+          />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-neutral-700 mb-1">Profissional *</label>
-          <select
+          <SearchableSelect
             value={professionalId}
-            onChange={(e) => setProfessionalId(e.target.value)}
-            className="input"
-          >
-            <option value="">Selecione…</option>
-            {activeProfessionals.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.fullName} ({p.registry})
-              </option>
-            ))}
-          </select>
+            onChange={setProfessionalId}
+            options={[
+              { value: '', label: 'Selecione…' },
+              ...activeProfessionals.map((p) => ({
+                value: p.id,
+                label: `${p.fullName} (${p.registry})`,
+              })),
+            ]}
+          />
         </div>
 
         <div>

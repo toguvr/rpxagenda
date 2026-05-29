@@ -12,6 +12,7 @@ import { ApiError, api } from '@/lib/api';
 import { getCurrentUser } from '@/lib/auth';
 import { Card } from '@/components/Card';
 import { Modal } from '@/components/Modal';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 // Ordem de exibição: semana de trabalho primeiro. weekday: 0=Dom .. 6=Sáb.
 const WEEKDAYS = [
@@ -167,17 +168,15 @@ export default function SchedulesPage() {
       <Card title="Funcionamento semanal">
         <div className="mb-4 max-w-sm">
           <label className="block text-sm font-medium text-neutral-700 mb-1">Serviço</label>
-          <select
+          <SearchableSelect
             value={serviceId}
-            onChange={(e) => setServiceId(e.target.value)}
-            className="input"
-          >
-            {services.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.durationMinutes} min){s.active ? '' : ' — inativo'}
-              </option>
-            ))}
-          </select>
+            onChange={setServiceId}
+            placeholder="Selecione um serviço…"
+            options={services.map((s) => ({
+              value: s.id,
+              label: `${s.name} (${s.durationMinutes} min)${s.active ? '' : ' — inativo'}`,
+            }))}
+          />
         </div>
 
         {hoursError && (
@@ -404,25 +403,25 @@ function ExceptionModal({
         </div>
         <div>
           <label className="block text-sm font-medium text-neutral-700 mb-1">Aplica-se a</label>
-          <select value={scope} onChange={(e) => setScope(e.target.value)} className="input">
-            <option value="">Unidade inteira</option>
-            {services.map((s) => (
-              <option key={s.id} value={s.id}>
-                Só: {s.name}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            value={scope}
+            onChange={setScope}
+            options={[
+              { value: '', label: 'Unidade inteira' },
+              ...services.map((s) => ({ value: s.id, label: `Só: ${s.name}` })),
+            ]}
+          />
         </div>
         <div>
           <label className="block text-sm font-medium text-neutral-700 mb-1">Tipo</label>
-          <select
+          <SearchableSelect
             value={type}
-            onChange={(e) => setType(e.target.value as ScheduleExceptionType)}
-            className="input"
-          >
-            <option value="CLOSED">Fechado (sem atendimento)</option>
-            <option value="CUSTOM">Horário especial</option>
-          </select>
+            onChange={(v) => setType(v as ScheduleExceptionType)}
+            options={[
+              { value: 'CLOSED', label: 'Fechado (sem atendimento)' },
+              { value: 'CUSTOM', label: 'Horário especial' },
+            ]}
+          />
         </div>
         {type === 'CUSTOM' && (
           <div className="grid grid-cols-2 gap-3">

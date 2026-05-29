@@ -14,6 +14,7 @@ import { ApiError, api } from '@/lib/api';
 import { getCurrentUser } from '@/lib/auth';
 import { Modal } from '@/components/Modal';
 import { CreatePlanModal } from '@/components/CreatePlanModal';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING_PAYMENT: 'Aguardando pgto',
@@ -167,39 +168,31 @@ export default function PlansPage() {
           placeholder="Buscar por paciente…"
           className="input"
         />
-        <select
+        <SearchableSelect
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="input"
-        >
-          <option value="">Todos os status</option>
-          {Object.values(PlanStatus).map((s) => (
-            <option key={s} value={s}>
-              {STATUS_LABELS[s]}
-            </option>
-          ))}
-        </select>
-        <select
+          onChange={setStatusFilter}
+          options={[
+            { value: '', label: 'Todos os status' },
+            ...Object.values(PlanStatus).map((s) => ({ value: s, label: STATUS_LABELS[s] })),
+          ]}
+        />
+        <SearchableSelect
           value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="input"
-        >
-          <option value="">Todos os tipos</option>
-          <option value="PACKAGE">Pacote</option>
-          <option value="SUBSCRIPTION">Assinatura</option>
-        </select>
-        <select
+          onChange={setTypeFilter}
+          options={[
+            { value: '', label: 'Todos os tipos' },
+            { value: 'PACKAGE', label: 'Pacote' },
+            { value: 'SUBSCRIPTION', label: 'Assinatura' },
+          ]}
+        />
+        <SearchableSelect
           value={serviceFilter}
-          onChange={(e) => setServiceFilter(e.target.value)}
-          className="input"
-        >
-          <option value="">Todos os serviços</option>
-          {serviceList.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+          onChange={setServiceFilter}
+          options={[
+            { value: '', label: 'Todos os serviços' },
+            ...serviceList.map((s) => ({ value: s.id, label: s.name })),
+          ]}
+        />
       </div>
 
       {error && (

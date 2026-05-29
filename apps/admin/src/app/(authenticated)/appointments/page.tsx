@@ -10,6 +10,7 @@ import ptBrLocale from '@fullcalendar/core/locales/pt-br';
 import type { AppointmentResponse, PatientResponse, ServiceResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 import { Modal } from '@/components/Modal';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 const STATUS_LABELS: Record<string, string> = {
   SCHEDULED: 'Agendado',
@@ -264,30 +265,24 @@ export default function AppointmentsPage() {
       )}
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-        <select
+        <SearchableSelect
+          className="sm:max-w-xs"
           value={serviceFilter}
-          onChange={(e) => setServiceFilter(e.target.value)}
-          className="input sm:max-w-xs"
-        >
-          <option value="">Todos os serviços</option>
-          {serviceOptions.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        <select
+          onChange={setServiceFilter}
+          options={[
+            { value: '', label: 'Todos os serviços' },
+            ...serviceOptions.map((s) => ({ value: s.id, label: s.name })),
+          ]}
+        />
+        <SearchableSelect
+          className="sm:max-w-xs"
           value={patientFilter}
-          onChange={(e) => setPatientFilter(e.target.value)}
-          className="input sm:max-w-xs"
-        >
-          <option value="">Todos os pacientes</option>
-          {patientOptions.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.fullName}
-            </option>
-          ))}
-        </select>
+          onChange={setPatientFilter}
+          options={[
+            { value: '', label: 'Todos os pacientes' },
+            ...patientOptions.map((p) => ({ value: p.id, label: p.fullName })),
+          ]}
+        />
         {(serviceFilter || patientFilter) && (
           <button
             onClick={() => {

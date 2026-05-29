@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import type { ServiceResponse } from '@rpx/shared';
+import { SearchableSelect } from './SearchableSelect';
 
 export interface ServiceFormValues {
   name: string;
@@ -76,33 +77,21 @@ export function ServiceForm({
       </div>
       <div>
         <label className="block text-sm font-medium text-neutral-700 mb-1">Tipo *</label>
-        <select
+        <SearchableSelect
           value={v.type}
-          onChange={(e) => setV({ ...v, type: e.target.value })}
-          className="input"
-        >
-          {SERVICE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+          onChange={(val) => setV({ ...v, type: val })}
+          options={SERVICE_TYPES.map((t) => ({ value: t, label: t }))}
+        />
       </div>
       <div>
         <label className="block text-sm font-medium text-neutral-700 mb-1">
           Tipo de plano aceito *
         </label>
-        <select
+        <SearchableSelect
           value={v.acceptedPlanType}
-          onChange={(e) => setV({ ...v, acceptedPlanType: e.target.value })}
-          className="input"
-        >
-          {PLAN_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+          onChange={(val) => setV({ ...v, acceptedPlanType: val })}
+          options={PLAN_TYPES.map((t) => ({ value: t, label: t }))}
+        />
       </div>
       <NumField label="Duração (min)" value={v.durationMinutes} onChange={num('durationMinutes')} />
       <NumField label="Capacidade por slot" value={v.slotCapacity} onChange={num('slotCapacity')} />

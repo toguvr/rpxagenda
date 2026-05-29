@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { MedicalRecordResponse, ProfessionalResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 import { Modal } from './Modal';
+import { SearchableSelect } from './SearchableSelect';
 
 /**
  * Registra/edita a evolução de uma sessão (prontuário). Cria via POST /medical-records
@@ -86,18 +87,17 @@ export function MedicalRecordModal({
             <label className="block text-sm font-medium text-neutral-700 mb-1">
               Profissional *
             </label>
-            <select
+            <SearchableSelect
               value={professionalId}
-              onChange={(e) => setProfessionalId(e.target.value)}
-              className="input"
-            >
-              <option value="">Selecione…</option>
-              {activeProfs.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.fullName} ({p.registry})
-                </option>
-              ))}
-            </select>
+              onChange={setProfessionalId}
+              options={[
+                { value: '', label: 'Selecione…' },
+                ...activeProfs.map((p) => ({
+                  value: p.id,
+                  label: `${p.fullName} (${p.registry})`,
+                })),
+              ]}
+            />
           </div>
         )}
 
