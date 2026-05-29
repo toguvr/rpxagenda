@@ -7,6 +7,7 @@ import type {
   AppointmentResponse,
   EquipmentResponse,
   InviteResponse,
+  MedicalRecordResponse,
   PatientResponse,
   PlanResponse,
   ProfessionalResponse,
@@ -21,18 +22,22 @@ import { Modal } from '@/components/Modal';
 import { CopyButton } from '@/components/CopyButton';
 import { CreatePlanModal } from '@/components/CreatePlanModal';
 import { CreateProtocolModal } from '@/components/CreateProtocolModal';
+import { RecurringScheduleModal } from '@/components/RecurringScheduleModal';
+import { MedicalRecordModal } from '@/components/MedicalRecordModal';
 import { PatientPhoto } from '@/components/PatientPhoto';
 
-type TabKey = 'plans' | 'protocols' | 'appointments';
+type TabKey = 'plans' | 'protocols' | 'appointments' | 'records';
 
 export default function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const searchParams = useSearchParams();
   const registerEval = searchParams.get('registerEval');
+  const evolucaoAppt = searchParams.get('evolucao');
 
   const [patient, setPatient] = useState<PatientResponse | null>(null);
   const [plans, setPlans] = useState<PlanResponse[] | null>(null);
   const [protocols, setProtocols] = useState<ProtocolResponse[] | null>(null);
+  const [records, setRecords] = useState<MedicalRecordResponse[] | null>(null);
   const [appointments, setAppointments] = useState<AppointmentResponse[] | null>(null);
   const [serviceMap, setServiceMap] = useState<Map<string, ServiceResponse>>(new Map());
   const [professionals, setProfessionals] = useState<ProfessionalResponse[]>([]);
@@ -53,6 +58,30 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   const [apptFrom, setApptFrom] = useState('');
   const [apptTo, setApptTo] = useState('');
 
+  // agendamento recorrente
+  const [recurringPlan, setRecurringPlan] = useState<PlanResponse | null>(null);
+
+  // evolução (prontuário)
+  const [recordModalOpen, setRecordModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<MedicalRecordResponse | null>(null);
+  const [recordApptId, setRecordApptId] = useState<string | null>(null);
+
+  async function reloadAppointments() {
+    try {
+      setAppointments(await api<AppointmentResponse[]>(`/appointments?patientId=${id}`));
+    } catch {
+      /* mantém a lista atual */
+    }
+  }
+
+  async function reloadRecords() {
+    try {
+      setRecords(await api<MedicalRecordResponse[]>(`/patients/${id}/medical-records`));
+    } catch {
+      /* mantém a lista atual */
+    }
+  }
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminRef, setAdminRef] = useState('');
   const [savingRef, setSavingRef] = useState(false);
@@ -71,14 +100,26 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
     }
   }, [registerEval]);
 
+  // Vindo de "Registrar evolução" no agendamento: abre o modal de evolução
+  // já vinculado àquele appointment.
+  useEffect(() => {
+    if (evolucaoAppt) {
+      setTab('records');
+      setEditingRecord(null);
+      setRecordApptId(evolucaoAppt);
+      setRecordModalOpen(true);
+    }
+  }, [evolucaoAppt]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [p, ps, prot, ap, svcs, profs, eqs] = await Promise.all([
+        const [p, ps, prot, recs, ap, svcs, profs, eqs] = await Promise.all([
           api<PatientResponse>(`/patients/${id}`),
           api<PlanResponse[]>(`/patients/${id}/plans`),
           api<ProtocolResponse[]>(`/patients/${id}/protocols`),
+          api<MedicalRecordResponse[]>(`/patients/${id}/medical-records`),
           api<AppointmentResponse[]>(`/appointments?patientId=${id}`),
           api<ServiceResponse[]>('/services?includeInactive=true'),
           api<ProfessionalResponse[]>('/professionals'),
@@ -89,6 +130,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         setAdminRef(p.adminReference ?? '');
         setPlans(ps);
         setProtocols(prot);
+        setRecords(recs);
         setAppointments(ap);
         setServiceMap(new Map(svcs.map((s) => [s.id, s])));
         setProfessionals(profs);
@@ -307,6 +349,9 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           <TabButton active={tab === 'protocols'} onClick={() => setTab('protocols')}>
             Avaliações ({protocols?.length ?? 0})
           </TabButton>
+          <TabButton active={tab === 'records'} onClick={() => setTab('records')}>
+            Evolução ({records?.length ?? 0})
+          </TabButton>
           <TabButton active={tab === 'appointments'} onClick={() => setTab('appointments')}>
             Agendamentos ({appointments?.length ?? 0})
           </TabButton>
@@ -327,9 +372,23 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             + Registrar avaliação
           </button>
         )}
+        {tab === 'records' && (
+          <button
+            onClick={() => {
+              setEditingRecord(null);
+              setRecordApptId(null);
+              setRecordModalOpen(true);
+            }}
+            className="text-sm font-medium text-brand-cyanDark hover:underline mb-1"
+          >
+            + Registrar evolução
+          </button>
+        )}
       </div>
 
-      {tab === 'plans' && <PlansList plans={plans} services={serviceMap} />}
+      {tab === 'plans' && (
+        <PlansList plans={plans} services={serviceMap} onSchedule={setRecurringPlan} />
+      )}
       {tab === 'protocols' && (
         <ProtocolsList
           protocols={protocols}
@@ -337,6 +396,18 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           plans={plans}
           professionals={professionalMap}
           equipments={equipmentMap}
+        />
+      )}
+      {tab === 'records' && (
+        <MedicalRecordsList
+          records={records}
+          professionals={professionalMap}
+          canEdit={(r) => isAdmin || r.professionalId === defaultProfessionalId}
+          onEdit={(r) => {
+            setEditingRecord(r);
+            setRecordApptId(null);
+            setRecordModalOpen(true);
+          }}
         />
       )}
       {tab === 'appointments' && (
@@ -396,6 +467,28 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         }}
       />
 
+      <RecurringScheduleModal
+        open={!!recurringPlan}
+        onClose={() => setRecurringPlan(null)}
+        plan={recurringPlan}
+        serviceName={
+          recurringPlan ? (serviceMap.get(recurringPlan.serviceId)?.name ?? 'Serviço') : ''
+        }
+        patientId={id}
+        onDone={reloadAppointments}
+      />
+
+      <MedicalRecordModal
+        open={recordModalOpen}
+        onClose={() => setRecordModalOpen(false)}
+        patientId={id}
+        professionals={professionals}
+        defaultProfessionalId={defaultProfessionalId}
+        appointmentId={recordApptId ?? undefined}
+        editing={editingRecord}
+        onSaved={reloadRecords}
+      />
+
       <Modal
         open={inviteModalOpen}
         onClose={() => setInviteModalOpen(false)}
@@ -436,9 +529,11 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 function PlansList({
   plans,
   services,
+  onSchedule,
 }: {
   plans: PlanResponse[] | null;
   services: Map<string, ServiceResponse>;
+  onSchedule: (plan: PlanResponse) => void;
 }) {
   if (!plans) return <div className="text-neutral-400">Carregando…</div>;
   if (plans.length === 0)
@@ -457,6 +552,7 @@ function PlansList({
             <th>Status</th>
             <th>Saldo / Quota</th>
             <th>Validade</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -475,6 +571,18 @@ function PlansList({
                   : `${p.weeklyUsage ?? 0} / ${p.weeklyQuota ?? '—'} por semana`}
               </td>
               <td>{p.validUntil ? formatDate(p.validUntil) : '—'}</td>
+              <td>
+                {p.status === 'ACTIVE' ? (
+                  <button
+                    onClick={() => onSchedule(p)}
+                    className="text-xs font-medium text-brand-cyanDark hover:underline whitespace-nowrap"
+                  >
+                    Agendar recorrente
+                  </button>
+                ) : (
+                  <span className="text-xs text-neutral-400">—</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -504,7 +612,8 @@ function ProtocolsList({
       </div>
     );
 
-  const planService = (planId: string) => {
+  const planService = (planId: string | null) => {
+    if (!planId) return null;
     const plan = plans?.find((p) => p.id === planId);
     return plan ? (services.get(plan.serviceId)?.name ?? 'Serviço') : null;
   };
@@ -530,7 +639,11 @@ function ProtocolsList({
                 )}
               </div>
               <div className="text-xs text-neutral-500">
-                {planService(pr.planId) ? `${planService(pr.planId)} · ` : ''}
+                {pr.planId
+                  ? planService(pr.planId)
+                    ? `${planService(pr.planId)} · `
+                    : ''
+                  : 'Sem plano · '}
                 {formatDate(pr.createdAt)}
               </div>
             </div>
@@ -560,6 +673,52 @@ function ProtocolsList({
               ))}
             </div>
           )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MedicalRecordsList({
+  records,
+  professionals,
+  canEdit,
+  onEdit,
+}: {
+  records: MedicalRecordResponse[] | null;
+  professionals: Map<string, ProfessionalResponse>;
+  canEdit: (r: MedicalRecordResponse) => boolean;
+  onEdit: (r: MedicalRecordResponse) => void;
+}) {
+  if (!records) return <div className="text-neutral-400">Carregando…</div>;
+  if (records.length === 0)
+    return (
+      <div className="text-neutral-500 bg-white border border-neutral-200 rounded-lg p-8 text-center">
+        Nenhuma evolução registrada. Clique em “+ Registrar evolução”.
+      </div>
+    );
+  return (
+    <div className="space-y-3">
+      {records.map((r) => (
+        <div key={r.id} className="rounded-lg border border-neutral-200 bg-white p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="text-xs text-neutral-500">
+              <span className="font-medium text-brand-black">
+                {professionals.get(r.professionalId)?.fullName ?? 'Profissional'}
+              </span>{' '}
+              · {formatDateTime(r.createdAt)}
+              {r.appointmentId && ' · sessão'}
+            </div>
+            {canEdit(r) && (
+              <button
+                onClick={() => onEdit(r)}
+                className="text-xs font-medium text-brand-cyanDark hover:underline"
+              >
+                editar
+              </button>
+            )}
+          </div>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-800">{r.content}</p>
         </div>
       ))}
     </div>

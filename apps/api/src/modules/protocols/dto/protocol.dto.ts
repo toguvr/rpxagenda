@@ -3,7 +3,8 @@ import { ApiProperty, PartialType } from '@nestjs/swagger';
 export class CreateProtocolDto {
   @ApiProperty() patientId!: string;
   @ApiProperty() professionalId!: string;
-  @ApiProperty() planId!: string;
+  @ApiProperty({ required: false, description: 'Opcional: avaliação pode ser feita sem plano.' })
+  planId?: string;
   @ApiProperty({ required: false, description: 'Agendamento de avaliação de origem.' })
   appointmentId?: string;
   @ApiProperty({ example: 20 }) totalSessions!: number;
@@ -22,7 +23,7 @@ export class ProtocolResponseDto {
   @ApiProperty() unitId!: string;
   @ApiProperty() patientId!: string;
   @ApiProperty() professionalId!: string;
-  @ApiProperty() planId!: string;
+  @ApiProperty({ nullable: true }) planId!: string | null;
   @ApiProperty({ nullable: true }) appointmentId!: string | null;
   @ApiProperty() totalSessions!: number;
   @ApiProperty() sessionsPerWeek!: number;

@@ -6,10 +6,13 @@ import {
   type AppointmentStatus as AppointmentStatusDb,
 } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
+import { fromZonedTime } from 'date-fns-tz';
 import type {
   AppointmentResponse,
   CreateAppointmentRequest,
+  CreateRecurringAppointmentsRequest,
   ListAppointmentsQuery,
+  RecurringAppointmentsResponse,
 } from '@rpx/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CLS_KEYS } from '../../common/cls/cls-keys';
@@ -187,6 +190,141 @@ export class AppointmentsService {
     }
     // unreachable, mas TS quer um return:
     throw new ResourceConflictException('Conflito de concorrência inesperado ao agendar.');
+  }
+
+  // -------- Recorrente (dias fixos) --------
+
+  /**
+   * Agenda os dias fixos de um paciente em um plano.
+   * - PACKAGE: gera ocorrências até esgotar as sessões restantes (limitado pela validade).
+   * - SUBSCRIPTION: gera até `endDate` (ou o fim do plano).
+   * Cada ocorrência passa pela validação do §4.3 (via `create`). Conflitos são
+   * pulados e reportados em `skipped`. Equipamentos vêm do protocolo ativo do plano.
+   */
+  async createRecurring(
+    data: CreateRecurringAppointmentsRequest,
+    now: Date = new Date(),
+  ): Promise<RecurringAppointmentsResponse> {
+    const unitId = this.cls.get<string>(CLS_KEYS.UNIT_ID);
+    if (!unitId) throw new Error('Unit context missing.');
+
+    const plan = await this.prisma.scoped.plan.findFirst({ where: { id: data.planId } });
+    if (!plan) throw new ResourceNotFoundException('Plano');
+    if (plan.patientId !== data.patientId) {
+      throw new ResourceConflictException('Plano informado não pertence ao paciente.');
+    }
+
+    const tz = await this.unitTimezone();
+
+    // Equipamentos sugeridos do protocolo ativo do plano (pré-marcados em todos).
+    const protocol = await this.prisma.scoped.protocol.findFirst({
+      where: { planId: data.planId, active: true },
+      include: { equipments: { select: { equipmentId: true } } },
+    });
+    const equipmentIds = protocol?.equipments.map((e) => e.equipmentId) ?? [];
+
+    // Horizonte de geração por tipo de plano.
+    let endYmd: string | null;
+    let maxCount = Number.POSITIVE_INFINITY;
+    if (plan.type === 'PACKAGE') {
+      if (plan.remainingSessions == null || plan.remainingSessions <= 0) {
+        throw new ResourceConflictException('Pacote sem sessões restantes para agendar.');
+      }
+      maxCount = plan.remainingSessions;
+      endYmd = plan.validUntil ? this.ymdInTz(plan.validUntil, tz) : null;
+    } else {
+      const end = data.endDate ?? (plan.endsAt ? this.ymdInTz(plan.endsAt, tz) : null);
+      if (!end) {
+        throw new ResourceConflictException(
+          'Informe a data fim — a assinatura não tem fim definido.',
+        );
+      }
+      endYmd = end;
+    }
+
+    const candidates = this.generateOccurrences({
+      startYmd: data.startDate,
+      endYmd,
+      slots: data.slots,
+      tz,
+      now,
+      maxCount,
+    });
+
+    const created: AppointmentResponse[] = [];
+    const skipped: { startsAt: Date; reason: string }[] = [];
+
+    for (const startsAt of candidates) {
+      try {
+        created.push(
+          await this.create(
+            {
+              patientId: data.patientId,
+              serviceId: plan.serviceId,
+              planId: data.planId,
+              startsAt,
+              equipmentIds,
+            },
+            now,
+          ),
+        );
+      } catch (err) {
+        if (
+          err instanceof AppointmentValidationException ||
+          err instanceof ResourceConflictException
+        ) {
+          skipped.push({ startsAt, reason: err.message });
+          // PACKAGE sem saldo: não adianta tentar as próximas ocorrências.
+          if (err instanceof AppointmentValidationException && err.code === 'PLAN_NOT_USABLE') {
+            break;
+          }
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    return { created, skipped };
+  }
+
+  /** Gera os instantes (UTC) das ocorrências dos dias fixos, em ordem cronológica. */
+  private generateOccurrences(args: {
+    startYmd: string;
+    endYmd: string | null;
+    slots: { weekday: number; time: string }[];
+    tz: string;
+    now: Date;
+    maxCount: number;
+  }): Date[] {
+    const MAX_DAYS = 400;
+    const out: Date[] = [];
+    let cursor = args.startYmd;
+    for (let i = 0; i < MAX_DAYS; i++) {
+      if (args.endYmd && cursor > args.endYmd) break;
+      const weekday = new Date(`${cursor}T12:00:00Z`).getUTCDay();
+      const daySlots = args.slots
+        .filter((s) => s.weekday === weekday)
+        .sort((a, b) => a.time.localeCompare(b.time));
+      for (const s of daySlots) {
+        const startsAt = fromZonedTime(`${cursor}T${s.time}:00`, args.tz);
+        if (startsAt.getTime() <= args.now.getTime()) continue; // descarta passado
+        out.push(startsAt);
+        if (out.length >= args.maxCount) return out;
+      }
+      cursor = this.addDaysYmd(cursor, 1);
+    }
+    return out;
+  }
+
+  private ymdInTz(date: Date, tz: string): string {
+    return date.toLocaleDateString('en-CA', { timeZone: tz }); // YYYY-MM-DD
+  }
+
+  private addDaysYmd(ymd: string, n: number): string {
+    const [y, m, d] = ymd.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + n);
+    return dt.toISOString().slice(0, 10);
   }
 
   // -------- Reschedule (drag-and-drop) --------
@@ -754,17 +892,20 @@ export class AppointmentsService {
       },
     });
 
-    // 4c. Uso semanal para SUBSCRIPTION
+    // 4c. Uso semanal para SUBSCRIPTION — quota é por semana DO agendamento
+    // (segunda→domingo da semana de `startsAt`), não cumulativa a partir de hoje,
+    // para que o agendamento recorrente em semanas futuras respeite a quota corretamente.
     let weeklyUsageForPlan = 0;
     if (args.planType === 'SUBSCRIPTION' && args.planId) {
-      const weekStart = startOfWeekMonday(args.now, args.unitTimezone);
+      const weekStart = startOfWeekMonday(args.startsAt, args.unitTimezone);
+      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
       weeklyUsageForPlan = await tx.appointment.count({
         where: {
           ...notSelf,
           planId: args.planId,
           status: { in: consumeStatuses },
           consumedSession: true,
-          startsAt: { gte: weekStart },
+          startsAt: { gte: weekStart, lt: weekEnd },
         },
       });
     }

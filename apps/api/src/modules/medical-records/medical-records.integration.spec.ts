@@ -1,4 +1,3 @@
- 
 /**
  * Integration tests da Fase 5 — Protocols + MedicalRecords contra Postgres real.
  * Cobre o fluxo completo: profissional cria protocolo, registra evolução em
@@ -293,17 +292,32 @@ describe('MedicalRecords (integration)', () => {
     expect(res.body.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('ADMIN pode ler, mas não criar', async () => {
+  it('ADMIN pode ler', async () => {
     const read = await request(app.getHttpServer())
       .get(`/patients/${patient.id}/medical-records`)
       .set('Authorization', `Bearer ${adminToken}`);
     expect(read.status).toBe(200);
+  });
 
-    const tryCreate = await request(app.getHttpServer())
+  it('ADMIN sem professionalId é recusado (409)', async () => {
+    const res = await request(app.getHttpServer())
       .post('/medical-records')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ patientId: patient.id, content: 'tentativa admin' });
-    expect(tryCreate.status).toBe(403);
+      .send({ patientId: patient.id, content: 'tentativa admin sem profissional' });
+    expect(res.status).toBe(409);
+  });
+
+  it('ADMIN cria informando o profissional autor (201)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/medical-records')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        patientId: patient.id,
+        professionalId: professional.id,
+        content: 'evolução registrada pela recepção a pedido do profissional',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.professionalId).toBe(professional.id);
   });
 
   it('rejeita appointmentId de outro paciente (409)', async () => {

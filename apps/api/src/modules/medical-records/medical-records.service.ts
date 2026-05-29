@@ -21,19 +21,27 @@ export class MedicalRecordsService {
   ) {}
 
   async create(
-    professionalUserId: string,
+    actorUserId: string,
     data: CreateMedicalRecordRequest,
   ): Promise<MedicalRecordResponse> {
     const unitId = this.cls.get<string>(CLS_KEYS.UNIT_ID);
     if (!unitId) throw new Error('Unit context missing.');
 
-    const professional = await this.prisma.scoped.professional.findFirst({
-      where: { userId: professionalUserId },
-      select: { id: true, active: true },
-    });
+    // Autor: se vier no corpo (caso do admin), usa-o; senão deriva do usuário (profissional).
+    const professional = data.professionalId
+      ? await this.prisma.scoped.professional.findFirst({
+          where: { id: data.professionalId },
+          select: { id: true, active: true },
+        })
+      : await this.prisma.scoped.professional.findFirst({
+          where: { userId: actorUserId },
+          select: { id: true, active: true },
+        });
     if (!professional) {
       throw new ResourceConflictException(
-        'Usuário autenticado não está vinculado a um profissional desta unidade.',
+        data.professionalId
+          ? 'Profissional informado não encontrado nesta unidade.'
+          : 'Informe o profissional responsável pela evolução.',
       );
     }
     if (!professional.active) {
@@ -95,21 +103,24 @@ export class MedicalRecordsService {
 
   async update(
     id: string,
-    professionalUserId: string,
+    actorUserId: string,
+    isAdmin: boolean,
     data: UpdateMedicalRecordRequest,
   ): Promise<MedicalRecordResponse> {
     const existing = await this.prisma.scoped.medicalRecord.findFirst({ where: { id } });
     if (!existing) throw new ResourceNotFoundException('Prontuário');
 
-    // Apenas o profissional autor pode editar.
-    const professional = await this.prisma.scoped.professional.findFirst({
-      where: { userId: professionalUserId },
-      select: { id: true },
-    });
-    if (!professional || professional.id !== existing.professionalId) {
-      throw new ResourceConflictException(
-        'Apenas o profissional que registrou o prontuário pode editá-lo.',
-      );
+    // ADMIN pode editar qualquer um; PROFESSIONAL só o que ele mesmo registrou.
+    if (!isAdmin) {
+      const professional = await this.prisma.scoped.professional.findFirst({
+        where: { userId: actorUserId },
+        select: { id: true },
+      });
+      if (!professional || professional.id !== existing.professionalId) {
+        throw new ResourceConflictException(
+          'Apenas o profissional que registrou o prontuário (ou um admin) pode editá-lo.',
+        );
+      }
     }
 
     const row = await this.prisma.scoped.medicalRecord.update({

@@ -31,12 +31,12 @@ import {
 export class MedicalRecordsController {
   constructor(private readonly records: MedicalRecordsService) {}
 
-  @Roles(UserRole.PROFESSIONAL)
+  @Roles(UserRole.PROFESSIONAL, UserRole.ADMIN)
   @Post('medical-records')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary:
-      'Profissional registra evolução clínica (com ou sem ligação a um Appointment). Apenas o autor pode editar depois.',
+      'Registra evolução clínica (com ou sem ligação a um Appointment). PROFESSIONAL grava como ele mesmo; ADMIN informa o profissional autor (professionalId).',
   })
   @ApiCreatedResponse({ type: MedicalRecordResponseDto })
   create(
@@ -47,9 +47,9 @@ export class MedicalRecordsController {
     return this.records.create(user.id, body);
   }
 
-  @Roles(UserRole.PROFESSIONAL)
+  @Roles(UserRole.PROFESSIONAL, UserRole.ADMIN)
   @Patch('medical-records/:id')
-  @ApiOperation({ summary: 'Edita um prontuário (apenas o profissional autor pode).' })
+  @ApiOperation({ summary: 'Edita um prontuário (o profissional autor ou um admin).' })
   @ApiOkResponse({ type: MedicalRecordResponseDto })
   update(
     @CurrentUser() user: RequestUser,
@@ -57,7 +57,7 @@ export class MedicalRecordsController {
     @Body(new ZodValidationPipe(updateMedicalRecordRequestSchema))
     body: UpdateMedicalRecordRequest,
   ): Promise<MedicalRecordResponse> {
-    return this.records.update(id, user.id, body);
+    return this.records.update(id, user.id, user.role === UserRole.ADMIN, body);
   }
 
   @Roles(UserRole.PROFESSIONAL, UserRole.ADMIN)

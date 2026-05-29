@@ -39,6 +39,14 @@ export const envSchema = z.object({
   // (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY no environment) ou de role anexada.
   S3_BUCKET: z.string().optional(),
   S3_REGION: z.string().default('us-east-1'),
+
+  // E-mail (AWS SES). Sem SES_FROM_EMAIL o envio fica desabilitado (apenas logado).
+  // O remetente precisa ser uma identidade verificada no SES. Credenciais vêm da
+  // cadeia padrão do AWS SDK (mesmas chaves do S3) e precisam de ses:SendEmail.
+  SES_FROM_EMAIL: z.string().email().optional(),
+  SES_REGION: z.string().default('us-east-1'),
+  // URL pública do admin, usada para montar o link de resgate do convite no e-mail.
+  ADMIN_PUBLIC_URL: z.string().url().default('http://localhost:4000'),
 });
 
 /**

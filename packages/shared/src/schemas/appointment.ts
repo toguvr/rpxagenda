@@ -70,3 +70,38 @@ export const listAppointmentsQuerySchema = z.object({
   status: z.nativeEnum(AppointmentStatus).optional(),
 });
 export type ListAppointmentsQuery = z.infer<typeof listAppointmentsQuerySchema>;
+
+// ---------- agendamento recorrente (dias fixos) ----------
+
+const ymdSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve estar no formato YYYY-MM-DD');
+const hhmmSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Horário deve estar no formato HH:MM (24h)');
+
+/**
+ * Cria vários agendamentos para os dias fixos de um paciente em um plano.
+ * - PACKAGE: gera até esgotar as sessões restantes (limitado pela validade).
+ * - SUBSCRIPTION: gera até `endDate` (ou o fim do plano).
+ * `slots` = pares (dia da semana 0=Dom..6=Sáb, horário). Equipamentos vêm do
+ * protocolo ativo do plano (resolvidos no servidor).
+ */
+export const createRecurringAppointmentsRequestSchema = z.object({
+  patientId: cuidSchema,
+  planId: cuidSchema,
+  startDate: ymdSchema,
+  /** Obrigatório para SUBSCRIPTION quando o plano não tem data de fim. */
+  endDate: ymdSchema.optional(),
+  slots: z
+    .array(z.object({ weekday: z.number().int().min(0).max(6), time: hhmmSchema }))
+    .min(1, 'Selecione ao menos um dia')
+    .max(7),
+});
+export type CreateRecurringAppointmentsRequest = z.infer<
+  typeof createRecurringAppointmentsRequestSchema
+>;
+
+export const recurringAppointmentsResponseSchema = z.object({
+  created: z.array(appointmentResponseSchema),
+  skipped: z.array(z.object({ startsAt: z.coerce.date(), reason: z.string() })),
+});
+export type RecurringAppointmentsResponse = z.infer<typeof recurringAppointmentsResponseSchema>;

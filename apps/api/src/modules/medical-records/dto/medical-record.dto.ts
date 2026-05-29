@@ -3,6 +3,8 @@ import { ApiProperty, PartialType } from '@nestjs/swagger';
 export class CreateMedicalRecordDto {
   @ApiProperty() patientId!: string;
   @ApiProperty({ required: false }) appointmentId?: string;
+  @ApiProperty({ required: false, description: 'Autor; obrigatório quando ADMIN cria.' })
+  professionalId?: string;
   @ApiProperty() content!: string;
   @ApiProperty({ type: String, isArray: true, default: [] }) attachmentUrls?: string[];
 }

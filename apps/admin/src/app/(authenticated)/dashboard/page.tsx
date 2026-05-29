@@ -28,6 +28,7 @@ export default function DashboardPage() {
   if (!data) return <div className="text-neutral-400">Carregando indicadores…</div>;
 
   const { today, patients, plans, attendance30d, last7Days, byService, alerts } = data;
+  const { topNoShow, inactiveWithActivePlan } = data;
   const pending = plans.pendingPayment + plans.pastDue;
 
   return (
@@ -156,6 +157,54 @@ export default function DashboardPage() {
                     </div>
                     <span className="whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
                       {p.remainingSessions} sessões
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card title={`Mais faltas — 60 dias (${topNoShow.length})`}>
+          {topNoShow.length === 0 ? (
+            <p className="text-sm text-neutral-400">Ninguém com faltas no período.</p>
+          ) : (
+            <ul className="divide-y divide-neutral-100">
+              {topNoShow.map((p) => (
+                <li key={p.patientId}>
+                  <Link
+                    href={`/patients/${p.patientId}`}
+                    className="-mx-2 flex items-center justify-between gap-3 rounded px-2 py-2 text-sm hover:bg-neutral-50"
+                  >
+                    <span className="truncate font-medium text-brand-black">{p.patientName}</span>
+                    <span className="whitespace-nowrap rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                      {p.noShowCount} {p.noShowCount === 1 ? 'falta' : 'faltas'}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card title={`Plano ativo, sem vir (${inactiveWithActivePlan.length})`}>
+          {inactiveWithActivePlan.length === 0 ? (
+            <p className="text-sm text-neutral-400">Todos os planos ativos vieram recentemente.</p>
+          ) : (
+            <ul className="divide-y divide-neutral-100">
+              {inactiveWithActivePlan.map((p) => (
+                <li key={p.patientId}>
+                  <Link
+                    href={`/patients/${p.patientId}`}
+                    className="-mx-2 flex items-center justify-between gap-3 rounded px-2 py-2 text-sm hover:bg-neutral-50"
+                  >
+                    <span className="truncate font-medium text-brand-black">{p.patientName}</span>
+                    <span className="whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                      {p.daysSinceLastVisit == null
+                        ? 'nunca veio'
+                        : `há ${p.daysSinceLastVisit} dias`}
                     </span>
                   </Link>
                 </li>

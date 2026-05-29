@@ -469,7 +469,8 @@ model Protocol {
   unitId          String
   patientId       String
   professionalId  String
-  planId          String
+  // Plano comercial vinculado — opcional: a avaliação pode ser feita antes da venda do plano.
+  planId          String?
   // Agendamento de avaliação que originou este protocolo (opcional).
   appointmentId   String?
   totalSessions   Int
@@ -483,7 +484,7 @@ model Protocol {
   unit         Unit                @relation(fields: [unitId], references: [id])
   patient      Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
   professional Professional        @relation(fields: [professionalId], references: [id])
-  plan         Plan                @relation(fields: [planId], references: [id])
+  plan         Plan?               @relation(fields: [planId], references: [id])
   appointment  Appointment?        @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   equipments   ProtocolEquipment[]
 

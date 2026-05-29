@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma, UserRole, type Patient as PatientRow } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
 import * as argon2 from 'argon2';
@@ -16,6 +16,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CLS_KEYS } from '../../common/cls/cls-keys';
 import { TypedConfigService } from '../../config/typed-config.service';
 import { STORAGE_PROVIDER, type IStorageProvider } from '../storage/storage.types';
+import { EMAIL_PROVIDER, type IEmailProvider } from '../email/email.types';
 import {
   InviteInvalidException,
   ResourceConflictException,
@@ -28,12 +29,15 @@ const INVITE_TTL_DAYS = 7;
 
 @Injectable()
 export class PatientsService {
+  private readonly logger = new Logger(PatientsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: TypedConfigService,
     private readonly auth: AuthService,
     private readonly cls: ClsService,
     @Inject(STORAGE_PROVIDER) private readonly storage: IStorageProvider,
+    @Inject(EMAIL_PROVIDER) private readonly email: IEmailProvider,
   ) {}
 
   // -------------- foto do paciente (S3 presigned) --------------
@@ -75,13 +79,50 @@ export class PatientsService {
   async create(data: CreatePatientRequest): Promise<PatientResponse> {
     // Não-admin não pode gravar o apelido/referência interna.
     const sanitized = this.isAdmin() ? data : { ...data, adminReference: undefined };
+    let row: PatientRow;
     try {
-      const row = await this.prisma.scoped.patient.create({
+      row = await this.prisma.scoped.patient.create({
         data: sanitized as unknown as Prisma.PatientUncheckedCreateInput,
       });
-      return this.toResponse(row);
     } catch (err) {
       throw this.mapError(err, data.cpf);
+    }
+    // Best-effort: se tem e-mail, já gera o convite e envia (não bloqueia o cadastro).
+    if (row.email) {
+      await this.sendInviteEmail(row.id, row.fullName, row.email);
+    }
+    return this.toResponse(row);
+  }
+
+  /** Gera um convite e envia por e-mail. Falhas são logadas, nunca propagadas. */
+  private async sendInviteEmail(patientId: string, fullName: string, email: string): Promise<void> {
+    try {
+      const invite = await this.generateInvite(patientId);
+      const url = `${this.config.get('ADMIN_PUBLIC_URL')}${invite.redeemPath}`;
+      const expira = invite.expiresAt.toLocaleDateString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+      });
+      const firstName = fullName.split(' ')[0];
+      await this.email.send({
+        to: email,
+        subject: 'Crie seu acesso — RPX Expert',
+        text:
+          `Olá, ${firstName}!\n\n` +
+          `Você foi cadastrado(a) na RPX Expert. Crie sua senha de acesso pelo link abaixo ` +
+          `(válido até ${expira}):\n${url}\n\n` +
+          `Depois é só entrar no app com o e-mail ${email} e a senha escolhida.`,
+        html:
+          `<p>Olá, <strong>${firstName}</strong>!</p>` +
+          `<p>Você foi cadastrado(a) na <strong>RPX Expert</strong>. Crie sua senha de acesso ` +
+          `(link válido até ${expira}):</p>` +
+          `<p><a href="${url}">Criar minha senha</a></p>` +
+          `<p>Depois é só entrar no app com o e-mail <strong>${email}</strong> e a senha escolhida.</p>`,
+      });
+    } catch (err) {
+      this.logger.warn(
+        { patientId, err: err instanceof Error ? err.message : String(err) },
+        'Falha ao gerar/enviar convite por e-mail (cadastro seguiu normalmente).',
+      );
     }
   }
 

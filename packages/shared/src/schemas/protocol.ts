@@ -4,7 +4,8 @@ import { cuidSchema } from './common';
 export const createProtocolRequestSchema = z.object({
   patientId: cuidSchema,
   professionalId: cuidSchema,
-  planId: cuidSchema,
+  /** Opcional: a avaliação pode ser registrada antes de existir um plano comercial. */
+  planId: cuidSchema.optional(),
   /** Agendamento de avaliação que originou o protocolo (opcional). */
   appointmentId: cuidSchema.optional(),
   totalSessions: z.number().int().positive().max(500),
@@ -30,7 +31,7 @@ export const protocolResponseSchema = z.object({
   unitId: cuidSchema,
   patientId: cuidSchema,
   professionalId: cuidSchema,
-  planId: cuidSchema,
+  planId: cuidSchema.nullable(),
   appointmentId: cuidSchema.nullable(),
   totalSessions: z.number().int(),
   sessionsPerWeek: z.number().int(),

@@ -26,33 +26,38 @@ export class ProtocolsService {
         where: { id: data.professionalId },
         select: { id: true, active: true },
       }),
-      this.prisma.scoped.plan.findFirst({
-        where: { id: data.planId },
-        select: { id: true, patientId: true },
-      }),
+      data.planId
+        ? this.prisma.scoped.plan.findFirst({
+            where: { id: data.planId },
+            select: { id: true, patientId: true },
+          })
+        : Promise.resolve(null),
     ]);
 
     if (!patient) throw new ResourceNotFoundException('Paciente');
     if (!professional) throw new ResourceNotFoundException('Profissional');
-    if (!plan) throw new ResourceNotFoundException('Plano');
+    if (data.planId && !plan) throw new ResourceNotFoundException('Plano');
     if (!professional.active) {
       throw new ResourceConflictException('Profissional inativo não pode criar protocolo.');
     }
-    if (plan.patientId !== data.patientId) {
+    if (plan && plan.patientId !== data.patientId) {
       throw new ResourceConflictException('Plano informado não pertence ao paciente.');
     }
     if (data.equipmentIds.length > 0) {
       await this.assertEquipmentsExist(data.equipmentIds);
     }
 
-    const existingActive = await this.prisma.scoped.protocol.findFirst({
-      where: { planId: data.planId, active: true },
-      select: { id: true },
-    });
-    if (existingActive) {
-      throw new ResourceConflictException(
-        `Já existe protocolo ativo para este plano (id ${existingActive.id}). Desative antes de criar outro.`,
-      );
+    // "1 protocolo ativo por plano" só se aplica quando há plano vinculado.
+    if (data.planId) {
+      const existingActive = await this.prisma.scoped.protocol.findFirst({
+        where: { planId: data.planId, active: true },
+        select: { id: true },
+      });
+      if (existingActive) {
+        throw new ResourceConflictException(
+          `Já existe protocolo ativo para este plano (id ${existingActive.id}). Desative antes de criar outro.`,
+        );
+      }
     }
 
     const row = await this.prisma.scoped.protocol.create({
@@ -60,7 +65,7 @@ export class ProtocolsService {
         unitId,
         patientId: data.patientId,
         professionalId: data.professionalId,
-        planId: data.planId,
+        planId: data.planId ?? null,
         appointmentId: data.appointmentId ?? null,
         totalSessions: data.totalSessions,
         sessionsPerWeek: data.sessionsPerWeek,
@@ -149,7 +154,7 @@ export class ProtocolsService {
     unitId: string;
     patientId: string;
     professionalId: string;
-    planId: string;
+    planId: string | null;
     appointmentId: string | null;
     totalSessions: number;
     sessionsPerWeek: number;

@@ -362,12 +362,18 @@ export default function AppointmentsPage() {
               >
                 {STATUS_LABELS[detail.status] ?? detail.status}
               </span>
-              <div className="pt-1">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
                 <Link
                   href={`/patients/${detail.patientId}?registerEval=${detail.id}`}
                   className="text-sm font-medium text-brand-cyanDark hover:underline"
                 >
                   Registrar avaliação →
+                </Link>
+                <Link
+                  href={`/patients/${detail.patientId}?evolucao=${detail.id}`}
+                  className="text-sm font-medium text-brand-cyanDark hover:underline"
+                >
+                  Registrar evolução →
                 </Link>
               </div>
             </div>

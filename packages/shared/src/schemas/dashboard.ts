@@ -36,6 +36,18 @@ export interface DashboardSummary {
   last7Days: { date: string; count: number }[];
   /** Agendamentos por serviço no mês corrente. */
   byService: { service: string; count: number }[];
+  /** Ranking de pacientes com mais faltas (NO_SHOW) nos últimos 60 dias. */
+  topNoShow: { patientId: string; patientName: string; noShowCount: number }[];
+  /**
+   * Pacientes com plano ATIVO que não comparecem há muito tempo (≥14 dias) ou nunca.
+   * `daysSinceLastVisit` = null quando o paciente nunca compareceu.
+   */
+  inactiveWithActivePlan: {
+    patientId: string;
+    patientName: string;
+    lastVisit: string | null;
+    daysSinceLastVisit: number | null;
+  }[];
   alerts: {
     expiringPlans: {
       id: string;

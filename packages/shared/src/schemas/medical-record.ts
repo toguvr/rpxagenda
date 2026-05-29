@@ -4,6 +4,8 @@ import { cuidSchema } from './common';
 export const createMedicalRecordRequestSchema = z.object({
   patientId: cuidSchema,
   appointmentId: cuidSchema.optional(),
+  /** Profissional autor. Opcional para PROFESSIONAL (assume o próprio); obrigatório para ADMIN. */
+  professionalId: cuidSchema.optional(),
   content: z.string().trim().min(1, 'Conteúdo não pode ser vazio').max(20_000),
   attachmentUrls: z
     .array(z.string().url('attachmentUrls deve conter URLs válidas'))

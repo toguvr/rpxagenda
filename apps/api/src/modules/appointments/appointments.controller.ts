@@ -20,13 +20,16 @@ import {
 import {
   cancelAppointmentRequestSchema,
   createAppointmentRequestSchema,
+  createRecurringAppointmentsRequestSchema,
   listAppointmentsQuerySchema,
   rescheduleAppointmentRequestSchema,
   UserRole,
   type AppointmentResponse,
   type CancelAppointmentRequest,
   type CreateAppointmentRequest,
+  type CreateRecurringAppointmentsRequest,
   type ListAppointmentsQuery,
+  type RecurringAppointmentsResponse,
   type RescheduleAppointmentRequest,
 } from '@rpx/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -70,6 +73,20 @@ export class AppointmentsController {
       await this.assertPatientIsSelf(user, body.patientId);
     }
     return this.appointments.create(body);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
+  @Post('appointments/recurring')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary:
+      'Agenda os dias fixos de um paciente em um plano (recorrente). PACKAGE: até esgotar as sessões; SUBSCRIPTION: até o fim do plano. Pula conflitos e os reporta em `skipped`.',
+  })
+  createRecurring(
+    @Body(new ZodValidationPipe(createRecurringAppointmentsRequestSchema))
+    body: CreateRecurringAppointmentsRequest,
+  ): Promise<RecurringAppointmentsResponse> {
+    return this.appointments.createRecurring(body);
   }
 
   // ---------- List / Get ----------

@@ -29,6 +29,7 @@ export class DashboardService {
     const monthStart = fromZonedTime(`${todayLocal.slice(0, 7)}-01T00:00:00`, tz);
     const last7Start = new Date(todayStart.getTime() - 6 * 86_400_000);
     const thirtyAgo = new Date(now.getTime() - 30 * 86_400_000);
+    const sixtyAgo = new Date(now.getTime() - 60 * 86_400_000);
     const in30 = new Date(now.getTime() + 30 * 86_400_000);
 
     const [
@@ -41,6 +42,7 @@ export class DashboardService {
       noShow30,
       last7Appts,
       monthAppts,
+      noShow60Appts,
     ] = await Promise.all([
       this.prisma.appointment.findMany({
         where: { unitId, startsAt: { gte: todayStart, lt: todayEnd } },
@@ -79,6 +81,10 @@ export class DashboardService {
         where: { unitId, startsAt: { gte: monthStart }, status: { not: 'CANCELLED' } },
         select: { service: { select: { name: true } } },
       }),
+      this.prisma.appointment.findMany({
+        where: { unitId, status: 'NO_SHOW', startsAt: { gte: sixtyAgo } },
+        select: { patientId: true, patient: { select: { fullName: true } } },
+      }),
     ]);
 
     const today = {
@@ -108,10 +114,12 @@ export class DashboardService {
     }
 
     const activePatientIds = new Set<string>();
+    const patientNames = new Map<string, string>();
     const expiringPlans: DashboardSummary['alerts']['expiringPlans'] = [];
     const lowBalancePlans: DashboardSummary['alerts']['lowBalancePlans'] = [];
     for (const p of activePlans) {
       activePatientIds.add(p.patientId);
+      patientNames.set(p.patientId, p.patient.fullName);
       if (p.type === 'PACKAGE' && p.validUntil && p.validUntil <= in30) {
         plans.expiringSoon++;
         expiringPlans.push({
@@ -162,6 +170,53 @@ export class DashboardService {
 
     const rate = completed30 + noShow30 > 0 ? completed30 / (completed30 + noShow30) : 0;
 
+    // Ranking 1: pacientes que mais faltam (NO_SHOW nos últimos 60 dias).
+    const noShowCounts = new Map<string, { name: string; count: number }>();
+    for (const a of noShow60Appts) {
+      const cur = noShowCounts.get(a.patientId);
+      if (cur) cur.count++;
+      else noShowCounts.set(a.patientId, { name: a.patient.fullName, count: 1 });
+    }
+    const topNoShow = Array.from(noShowCounts.entries())
+      .map(([patientId, v]) => ({ patientId, patientName: v.name, noShowCount: v.count }))
+      .sort((a, b) => b.noShowCount - a.noShowCount)
+      .slice(0, 6);
+
+    // Ranking 2: plano ativo mas sem comparecer há muito tempo (≥14 dias) ou nunca.
+    const ABSENCE_DAYS = 14;
+    const lastVisitRows =
+      activePatientIds.size > 0
+        ? await this.prisma.appointment.groupBy({
+            by: ['patientId'],
+            where: {
+              unitId,
+              patientId: { in: [...activePatientIds] },
+              status: { in: ['COMPLETED', 'CHECKED_IN'] },
+            },
+            _max: { startsAt: true },
+          })
+        : [];
+    const lastVisitByPatient = new Map<string, Date | null>(
+      lastVisitRows.map((r) => [r.patientId, r._max.startsAt]),
+    );
+    const inactiveWithActivePlan = [...activePatientIds]
+      .map((patientId) => {
+        const last = lastVisitByPatient.get(patientId) ?? null;
+        const daysSinceLastVisit = last
+          ? Math.floor((now.getTime() - last.getTime()) / 86_400_000)
+          : null;
+        return {
+          patientId,
+          patientName: patientNames.get(patientId) ?? 'Paciente',
+          lastVisit: last ? last.toISOString() : null,
+          daysSinceLastVisit,
+        };
+      })
+      .filter((p) => p.daysSinceLastVisit === null || p.daysSinceLastVisit >= ABSENCE_DAYS)
+      // nunca compareceu primeiro, depois maior ausência
+      .sort((a, b) => (b.daysSinceLastVisit ?? Infinity) - (a.daysSinceLastVisit ?? Infinity))
+      .slice(0, 6);
+
     return {
       today,
       patients: { total: patientsTotal, withActivePlan: activePatientIds.size, newThisMonth },
@@ -169,6 +224,8 @@ export class DashboardService {
       attendance30d: { completed: completed30, noShow: noShow30, rate },
       last7Days,
       byService,
+      topNoShow,
+      inactiveWithActivePlan,
       alerts: {
         expiringPlans: expiringPlans.slice(0, 6),
         lowBalancePlans: lowBalancePlans.slice(0, 6),

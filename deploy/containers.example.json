@@ -15,7 +15,10 @@
       "S3_BUCKET": "rpxagenda-api",
       "S3_REGION": "us-east-1",
       "AWS_ACCESS_KEY_ID": "REPLACE_ME",
-      "AWS_SECRET_ACCESS_KEY": "REPLACE_ME"
+      "AWS_SECRET_ACCESS_KEY": "REPLACE_ME",
+      "SES_REGION": "us-east-1",
+      "ADMIN_PUBLIC_URL": "https://SEU-ADMIN.netlify.app",
+      "SES_FROM_EMAIL": "no-reply@seudominio.com (remetente verificado no SES)"
     }
   }
 }
