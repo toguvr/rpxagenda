@@ -12,6 +12,7 @@ const NAV = [
   { href: '/appointments', label: 'Agenda' },
   { href: '/patients', label: 'Pacientes' },
   { href: '/plans', label: 'Planos' },
+  { href: '/finance', label: 'Financeiro', adminOnly: true },
   { href: '/services', label: 'Serviços' },
   { href: '/schedules', label: 'Horários' },
   { href: '/equipments', label: 'Equipamentos' },
@@ -74,7 +75,7 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
               R
             </div>
             <div className="min-w-0">
-              <div className="font-bold text-white">RPX Expert</div>
+              <div className="font-bold text-white">RPX Agenda</div>
               <div className="truncate text-xs text-neutral-400">
                 {user?.fullName ?? user?.email}
               </div>
@@ -89,7 +90,9 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
           </button>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {NAV.map((item) => {
+          {NAV.filter(
+            (item) => !('adminOnly' in item && item.adminOnly) || user?.role === 'ADMIN',
+          ).map((item) => {
             const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
             return (
               <Link
@@ -124,7 +127,7 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
           <button onClick={() => setOpen(true)} aria-label="Abrir menu">
             <MenuIcon />
           </button>
-          <span className="font-bold">RPX Expert</span>
+          <span className="font-bold">RPX Agenda</span>
         </header>
 
         <main className="flex-1 overflow-auto">

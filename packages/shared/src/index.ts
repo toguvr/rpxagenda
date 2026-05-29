@@ -7,6 +7,7 @@ export * from './schemas/professional';
 export * from './schemas/patient';
 export * from './schemas/schedule';
 export * from './schemas/plan';
+export * from './schemas/finance';
 export * from './schemas/appointment';
 export * from './schemas/idface';
 export * from './schemas/protocol';

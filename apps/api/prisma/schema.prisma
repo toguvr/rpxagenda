@@ -61,6 +61,34 @@ enum IdfaceEventOutcome {
   ALREADY_CHECKED_IN
 }
 
+enum PaymentMethod {
+  PIX
+  CREDIT_CARD
+  DEBIT_CARD
+  CASH
+  BOLETO
+  BANK_TRANSFER
+  OTHER
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  REFUNDED
+  FAILED
+}
+
+enum ExpenseCategory {
+  RENT
+  PAYROLL
+  SUPPLIES
+  EQUIPMENT
+  UTILITIES
+  TAXES
+  MARKETING
+  OTHER
+}
+
 model Unit {
   id        String   @id @default(cuid())
   name      String
@@ -80,6 +108,8 @@ model Unit {
   idfaceEvents       IdfaceEvent[]
   protocols          Protocol[]
   medicalRecords     MedicalRecord[]
+  payments           Payment[]
+  expenses           Expense[]
 
   @@map("units")
 }
@@ -150,6 +180,8 @@ model Service {
   /// antes de marcar o agendamento como NO_SHOW automaticamente.
   noShowGraceMinutes       Int         @default(15)
   acceptedPlanType         PlanType
+  /// Preço sugerido em centavos (BRL). Pré-preenche o valor ao criar um plano.
+  suggestedPriceCents      Int?
   active                   Boolean     @default(true)
   createdAt                DateTime    @default(now())
   updatedAt                DateTime    @updatedAt
@@ -266,6 +298,7 @@ model Patient {
   idfaceEvents   IdfaceEvent[]
   protocols      Protocol[]
   medicalRecords MedicalRecord[]
+  payments       Payment[]
 
   @@unique([unitId, cpf])
   @@index([unitId, fullName])
@@ -344,6 +377,10 @@ model Plan {
   type      PlanType
   status    PlanStatus @default(ACTIVE)
 
+  /// Valor combinado com o paciente em centavos (BRL). Pré-preenchido pelo preço
+  /// sugerido do serviço, editável (descontos etc).
+  priceCents Int?
+
   // PACKAGE
   totalSessions     Int?
   remainingSessions Int?
@@ -364,6 +401,7 @@ model Plan {
   service      Service       @relation(fields: [serviceId], references: [id])
   appointments Appointment[]
   protocols    Protocol[]
+  payments     Payment[]
 
   @@index([unitId, patientId, status])
   @@index([unitId, serviceId, status])
@@ -533,4 +571,58 @@ model MedicalRecord {
   @@index([unitId, patientId, createdAt])
   @@index([appointmentId])
   @@map("medical_records")
+}
+
+// ----- Financeiro -----
+
+/// Recebimento (entrada). Lançado manualmente pelo admin; a integração Pagar.me
+/// (Fase 6) preencherá `pagarmeChargeId`/`rawWebhook`. Valores em centavos (BRL).
+/// `createdById` guarda o admin autor (sem relação, como AuditLog.actorId).
+model Payment {
+  id              String        @id @default(cuid())
+  unitId          String
+  planId          String?
+  patientId       String?
+  amountCents     Int
+  method          PaymentMethod
+  status          PaymentStatus @default(PAID)
+  paidAt          DateTime?
+  dueAt           DateTime?
+  description     String?
+  notes           String?
+  pagarmeChargeId String?
+  rawWebhook      Json?
+  createdById     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  unit    Unit     @relation(fields: [unitId], references: [id])
+  plan    Plan?    @relation(fields: [planId], references: [id], onDelete: SetNull)
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  @@index([unitId, status])
+  @@index([unitId, paidAt])
+  @@index([patientId])
+  @@index([planId])
+  @@map("payments")
+}
+
+/// Despesa (saída). Lançada manualmente pelo admin. Valores em centavos (BRL).
+model Expense {
+  id          String          @id @default(cuid())
+  unitId      String
+  category    ExpenseCategory
+  amountCents Int
+  paidAt      DateTime
+  description String?
+  notes       String?
+  createdById String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id])
+
+  @@index([unitId, paidAt])
+  @@index([unitId, category])
+  @@map("expenses")
 }

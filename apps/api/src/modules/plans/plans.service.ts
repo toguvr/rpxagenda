@@ -50,6 +50,8 @@ export class PlansService {
       serviceId: data.serviceId,
       type: data.type,
       startsAt: data.startsAt ?? new Date(),
+      // Valor combinado: usa o informado ou cai no preço sugerido do serviço.
+      priceCents: data.priceCents ?? service.suggestedPriceCents ?? null,
     };
 
     // unitId é injetado pela extensão de unit-scope a partir do CLS.
@@ -188,6 +190,7 @@ export class PlansService {
       serviceId: row.serviceId,
       type: row.type,
       status: row.status,
+      priceCents: row.priceCents,
       totalSessions: row.totalSessions,
       remainingSessions: row.remainingSessions,
       validUntil: row.validUntil,

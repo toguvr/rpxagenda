@@ -6,6 +6,13 @@ export class CreatePackagePlanDto {
   @ApiProperty() serviceId!: string;
   @ApiProperty({ example: 20 }) totalSessions!: number;
   @ApiProperty({ type: String, format: 'date', example: '2026-09-30' }) validUntil!: string;
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 120000,
+    description: 'valor em centavos',
+  })
+  priceCents?: number | null;
   @ApiProperty({ type: String, format: 'date-time', required: false }) startsAt?: string;
 }
 
@@ -14,6 +21,13 @@ export class CreateSubscriptionPlanDto {
   @ApiProperty() patientId!: string;
   @ApiProperty() serviceId!: string;
   @ApiProperty({ example: 3, description: 'agendamentos por semana' }) weeklyQuota!: number;
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 25000,
+    description: 'valor em centavos',
+  })
+  priceCents?: number | null;
   @ApiProperty({ type: String, format: 'date-time', required: false }) startsAt?: string;
 }
 
@@ -35,6 +49,7 @@ export class PlanResponseDto {
     enum: ['PENDING_PAYMENT', 'ACTIVE', 'PAST_DUE', 'SUSPENDED', 'EXPIRED', 'CANCELLED'],
   })
   status!: string;
+  @ApiProperty({ nullable: true, description: 'valor em centavos' }) priceCents!: number | null;
   @ApiProperty({ nullable: true }) totalSessions!: number | null;
   @ApiProperty({ nullable: true }) remainingSessions!: number | null;
   @ApiProperty({ type: String, format: 'date-time', nullable: true }) validUntil!: Date | null;

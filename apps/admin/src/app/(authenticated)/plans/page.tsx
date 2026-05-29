@@ -12,6 +12,7 @@ import {
 } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 import { getCurrentUser } from '@/lib/auth';
+import { formatCents } from '@/lib/money';
 import { Modal } from '@/components/Modal';
 import { CreatePlanModal } from '@/components/CreatePlanModal';
 import { SearchableSelect } from '@/components/SearchableSelect';
@@ -216,6 +217,7 @@ export default function PlansPage() {
                 <th>Serviço</th>
                 <th>Tipo</th>
                 <th>Status</th>
+                <th>Valor</th>
                 <th>Saldo / Quota</th>
                 <th>Validade</th>
                 {isAdmin && <th>Ações</th>}
@@ -251,6 +253,7 @@ export default function PlansPage() {
                         {STATUS_LABELS[p.status] ?? p.status}
                       </span>
                     </td>
+                    <td>{formatCents(p.priceCents)}</td>
                     <td>
                       {p.type === 'PACKAGE'
                         ? `${p.remainingSessions ?? '—'} / ${p.totalSessions ?? '—'} sessões`

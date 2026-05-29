@@ -21,6 +21,8 @@ export const UNIT_SCOPED_MODELS = new Set<string>([
   'Appointment',
   'Protocol',
   'MedicalRecord',
+  'Payment',
+  'Expense',
 ]);
 
 const READ_OPERATIONS = new Set([

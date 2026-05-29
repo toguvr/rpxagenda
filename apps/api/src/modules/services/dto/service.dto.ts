@@ -10,6 +10,13 @@ export class CreateServiceDto {
   @ApiProperty({ example: 30, default: 30 }) checkInWindowBeforeMin?: number;
   @ApiProperty({ example: 15, default: 15 }) checkInWindowAfterMin?: number;
   @ApiProperty({ enum: ['PACKAGE', 'SUBSCRIPTION'] }) acceptedPlanType!: string;
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 120000,
+    description: 'preço sugerido em centavos',
+  })
+  suggestedPriceCents?: number | null;
   @ApiProperty({ default: true }) active?: boolean;
 }
 
@@ -27,6 +34,7 @@ export class ServiceResponseDto {
   @ApiProperty() checkInWindowBeforeMin!: number;
   @ApiProperty() checkInWindowAfterMin!: number;
   @ApiProperty({ enum: ['PACKAGE', 'SUBSCRIPTION'] }) acceptedPlanType!: string;
+  @ApiProperty({ nullable: true }) suggestedPriceCents!: number | null;
   @ApiProperty() active!: boolean;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ type: String, format: 'date-time' }) updatedAt!: Date;

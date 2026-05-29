@@ -20,6 +20,8 @@ const baseCreate = z.object({
   patientId: cuidSchema,
   serviceId: cuidSchema,
   startsAt: z.coerce.date().optional(),
+  /** Valor combinado com o paciente (centavos). Pré-preenchido pelo preço sugerido do serviço, editável. */
+  priceCents: z.number().int().min(0).max(100_000_000).nullable().optional(),
 });
 
 export const createPackagePlanSchema = baseCreate.extend({
@@ -61,6 +63,7 @@ export const planResponseSchema = z.object({
   serviceId: cuidSchema,
   type: z.nativeEnum(PlanType),
   status: z.nativeEnum(PlanStatus),
+  priceCents: z.number().int().nullable(),
   totalSessions: z.number().int().nullable(),
   remainingSessions: z.number().int().nullable(),
   validUntil: z.coerce.date().nullable(),

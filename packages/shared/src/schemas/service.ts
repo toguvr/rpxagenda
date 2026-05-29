@@ -16,6 +16,8 @@ export const createServiceRequestSchema = z.object({
   checkInWindowAfterMin: nonNegativeInt.max(60 * 4).default(15),
   noShowGraceMinutes: nonNegativeInt.max(60 * 4).default(15),
   acceptedPlanType: z.nativeEnum(PlanType),
+  /** Preço sugerido (centavos) — pré-preenche o valor ao criar um plano. */
+  suggestedPriceCents: nonNegativeInt.max(100_000_000).nullable().optional(),
   active: z.boolean().default(true),
 });
 export type CreateServiceRequest = z.infer<typeof createServiceRequestSchema>;
@@ -36,6 +38,7 @@ export const serviceResponseSchema = z.object({
   checkInWindowAfterMin: z.number().int(),
   noShowGraceMinutes: z.number().int(),
   acceptedPlanType: z.nativeEnum(PlanType),
+  suggestedPriceCents: z.number().int().nullable(),
   active: z.boolean(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),

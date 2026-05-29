@@ -15,6 +15,7 @@ export interface ServiceFormValues {
   checkInWindowAfterMin: number;
   noShowGraceMinutes: number;
   acceptedPlanType: string;
+  suggestedPriceCents: number | null;
   active: boolean;
 }
 
@@ -33,6 +34,7 @@ function fromService(s?: ServiceResponse): ServiceFormValues {
     checkInWindowAfterMin: s?.checkInWindowAfterMin ?? 15,
     noShowGraceMinutes: s?.noShowGraceMinutes ?? 15,
     acceptedPlanType: s?.acceptedPlanType ?? 'PACKAGE',
+    suggestedPriceCents: s?.suggestedPriceCents ?? null,
     active: s?.active ?? true,
   };
 }
@@ -91,6 +93,26 @@ export function ServiceForm({
           value={v.acceptedPlanType}
           onChange={(val) => setV({ ...v, acceptedPlanType: val })}
           options={PLAN_TYPES.map((t) => ({ value: t, label: t }))}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-neutral-700 mb-1">
+          Preço sugerido (R$)
+        </label>
+        <input
+          type="number"
+          min={0}
+          step="0.01"
+          value={v.suggestedPriceCents != null ? String(v.suggestedPriceCents / 100) : ''}
+          onChange={(e) =>
+            setV({
+              ...v,
+              suggestedPriceCents:
+                e.target.value === '' ? null : Math.round(Number(e.target.value) * 100),
+            })
+          }
+          placeholder="opcional"
+          className="input"
         />
       </div>
       <NumField label="Duração (min)" value={v.durationMinutes} onChange={num('durationMinutes')} />

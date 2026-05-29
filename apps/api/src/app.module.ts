@@ -21,6 +21,7 @@ import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { IdfaceModule } from './modules/integrations/idface/idface.module';
 import { ProtocolsModule } from './modules/protocols/protocols.module';
 import { MedicalRecordsModule } from './modules/medical-records/medical-records.module';
+import { FinanceModule } from './modules/finance/finance.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { EmailModule } from './modules/email/email.module';
@@ -58,6 +59,7 @@ import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.int
     IdfaceModule,
     ProtocolsModule,
     MedicalRecordsModule,
+    FinanceModule,
     DashboardModule,
     HealthModule,
   ],

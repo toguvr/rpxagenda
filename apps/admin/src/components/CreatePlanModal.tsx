@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PatientResponse, PlanResponse, ServiceResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
+import { reaisToCents } from '@/lib/money';
 import { Modal } from './Modal';
 import { SearchableSelect } from './SearchableSelect';
 
@@ -34,6 +35,7 @@ export function CreatePlanModal({
   const [totalSessions, setTotalSessions] = useState(20);
   const [validUntil, setValidUntil] = useState('');
   const [weeklyQuota, setWeeklyQuota] = useState(3);
+  const [priceReais, setPriceReais] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -46,11 +48,19 @@ export function CreatePlanModal({
   );
   const planType = service?.acceptedPlanType ?? null;
 
+  // Pré-preenche o valor pelo preço sugerido do serviço quando o serviço muda.
+  useEffect(() => {
+    if (service?.suggestedPriceCents != null) {
+      setPriceReais(String(service.suggestedPriceCents / 100));
+    }
+  }, [service]);
+
   async function handleSubmit() {
     if (!service || !effectivePatientId) return;
     setBusy(true);
     setError(null);
     try {
+      const priceCents = priceReais.trim() === '' ? null : reaisToCents(priceReais);
       const body =
         planType === 'PACKAGE'
           ? {
@@ -59,12 +69,14 @@ export function CreatePlanModal({
               serviceId,
               totalSessions,
               validUntil,
+              priceCents,
             }
           : {
               type: 'SUBSCRIPTION' as const,
               patientId: effectivePatientId,
               serviceId,
               weeklyQuota,
+              priceCents,
             };
       const created = await api<PlanResponse>('/plans', { method: 'POST', body });
       onCreated(created);
@@ -82,6 +94,7 @@ export function CreatePlanModal({
     setTotalSessions(20);
     setValidUntil('');
     setWeeklyQuota(3);
+    setPriceReais('');
     setError(null);
     onClose();
   }
@@ -164,6 +177,21 @@ export function CreatePlanModal({
               max={14}
               value={weeklyQuota}
               onChange={(e) => setWeeklyQuota(Number(e.target.value))}
+              className="input"
+            />
+          </div>
+        )}
+
+        {service && (
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Valor (R$)</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={priceReais}
+              onChange={(e) => setPriceReais(e.target.value)}
+              placeholder="opcional — pré-preenchido pelo preço sugerido"
               className="input"
             />
           </div>
