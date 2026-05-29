@@ -36,7 +36,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-brand-bgDark p-4">
       <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-xl">
         <div className="mb-8 flex flex-col items-center text-center">
-          <img src="/logo.jpg" alt="RPX Agenda" className="h-28 w-28 object-contain" />
+          <img src="/logo.jpg" alt="RPX Agenda" className="h-16 w-auto object-contain" />
           <p className="mt-2 text-sm text-neutral-500">Painel administrativo</p>
         </div>
 

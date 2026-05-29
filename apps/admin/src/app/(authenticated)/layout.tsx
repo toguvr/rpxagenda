@@ -70,18 +70,13 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
         }
       >
         <div className="flex items-center justify-between border-b border-neutral-800 p-6">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <img
               src="/logo.jpg"
               alt="RPX Agenda"
-              className="h-10 w-10 rounded bg-white object-contain"
+              className="h-9 w-auto rounded bg-white object-contain px-1.5 py-1"
             />
-            <div className="min-w-0">
-              <div className="font-bold text-white">RPX Agenda</div>
-              <div className="truncate text-xs text-neutral-400">
-                {user?.fullName ?? user?.email}
-              </div>
-            </div>
+            <div className="truncate text-xs text-neutral-400">{user?.fullName ?? user?.email}</div>
           </div>
           <button
             onClick={() => setOpen(false)}
