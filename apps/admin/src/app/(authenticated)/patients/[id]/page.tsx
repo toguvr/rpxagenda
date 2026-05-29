@@ -2,6 +2,7 @@
 
 import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import type {
   AppointmentResponse,
   EquipmentResponse,
@@ -20,11 +21,14 @@ import { Modal } from '@/components/Modal';
 import { CopyButton } from '@/components/CopyButton';
 import { CreatePlanModal } from '@/components/CreatePlanModal';
 import { CreateProtocolModal } from '@/components/CreateProtocolModal';
+import { PatientPhoto } from '@/components/PatientPhoto';
 
 type TabKey = 'plans' | 'protocols' | 'appointments';
 
 export default function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const registerEval = searchParams.get('registerEval');
 
   const [patient, setPatient] = useState<PatientResponse | null>(null);
   const [plans, setPlans] = useState<PlanResponse[] | null>(null);
@@ -45,6 +49,10 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   const [createPlanOpen, setCreatePlanOpen] = useState(false);
   const [createProtocolOpen, setCreateProtocolOpen] = useState(false);
 
+  // filtro de data dos agendamentos
+  const [apptFrom, setApptFrom] = useState('');
+  const [apptTo, setApptTo] = useState('');
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminRef, setAdminRef] = useState('');
   const [savingRef, setSavingRef] = useState(false);
@@ -53,6 +61,15 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     setIsAdmin(getCurrentUser()?.role === UserRole.ADMIN);
   }, []);
+
+  // Vindo de "Registrar avaliação" no agendamento: abre o modal de protocolo
+  // já vinculado àquele appointment.
+  useEffect(() => {
+    if (registerEval) {
+      setTab('protocols');
+      setCreateProtocolOpen(true);
+    }
+  }, [registerEval]);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +121,18 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
     const u = getCurrentUser();
     return professionals.find((p) => p.userId === u?.id)?.id ?? '';
   }, [professionals]);
+
+  const filteredAppointments = useMemo(() => {
+    if (!appointments) return null;
+    const from = apptFrom ? new Date(`${apptFrom}T00:00:00`) : null;
+    const to = apptTo ? new Date(`${apptTo}T23:59:59`) : null;
+    return appointments.filter((a) => {
+      const d = new Date(a.startsAt);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+  }, [appointments, apptFrom, apptTo]);
 
   async function handleSaveAdminRef() {
     setSavingRef(true);
@@ -177,6 +206,10 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           {inviteError}
         </div>
       )}
+
+      <Card title="Foto do paciente">
+        <PatientPhoto patientId={id} />
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card title="Identificação">
@@ -307,7 +340,36 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         />
       )}
       {tab === 'appointments' && (
-        <AppointmentsList appointments={appointments} services={serviceMap} />
+        <div className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label className="text-sm text-neutral-600">De</label>
+            <input
+              type="date"
+              value={apptFrom}
+              onChange={(e) => setApptFrom(e.target.value)}
+              className="input sm:max-w-[12rem]"
+            />
+            <label className="text-sm text-neutral-600">até</label>
+            <input
+              type="date"
+              value={apptTo}
+              onChange={(e) => setApptTo(e.target.value)}
+              className="input sm:max-w-[12rem]"
+            />
+            {(apptFrom || apptTo) && (
+              <button
+                onClick={() => {
+                  setApptFrom('');
+                  setApptTo('');
+                }}
+                className="text-sm font-medium text-brand-cyanDark hover:underline"
+              >
+                limpar
+              </button>
+            )}
+          </div>
+          <AppointmentsList appointments={filteredAppointments} services={serviceMap} />
+        </div>
       )}
 
       <CreatePlanModal
@@ -327,6 +389,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         professionals={professionals}
         equipments={equipments}
         defaultProfessionalId={defaultProfessionalId}
+        appointmentId={registerEval ?? undefined}
         onCreated={(protocol) => {
           setProtocols((prev) => [protocol, ...(prev ?? [])]);
           setCreateProtocolOpen(false);

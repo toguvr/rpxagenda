@@ -27,6 +27,8 @@ export class PatientResponseDto {
   @ApiProperty({ nullable: true }) notes!: string | null;
   @ApiProperty({ nullable: true, description: 'Apelido/referência interna — null p/ não-ADMIN.' })
   adminReference!: string | null;
+  @ApiProperty({ nullable: true, description: 'Object key da foto no S3.' })
+  photoKey!: string | null;
   @ApiProperty() hasIdfaceEnrolled!: boolean;
   @ApiProperty() hasUserAccount!: boolean;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date;

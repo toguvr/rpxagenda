@@ -12,7 +12,8 @@ const STATUSES = [
 export class CreateAppointmentDto {
   @ApiProperty() patientId!: string;
   @ApiProperty() serviceId!: string;
-  @ApiProperty() planId!: string;
+  @ApiProperty({ required: false, description: 'Ausente = avulso (só Avaliação).' })
+  planId?: string;
   @ApiProperty({ type: String, format: 'date-time' }) startsAt!: string;
   @ApiProperty({ type: String, isArray: true, default: [] }) equipmentIds?: string[];
 }
@@ -26,7 +27,7 @@ export class AppointmentResponseDto {
   @ApiProperty() unitId!: string;
   @ApiProperty() patientId!: string;
   @ApiProperty() serviceId!: string;
-  @ApiProperty() planId!: string;
+  @ApiProperty({ nullable: true }) planId!: string | null;
   @ApiProperty({ nullable: true }) professionalId!: string | null;
   @ApiProperty({ type: String, format: 'date-time' }) startsAt!: Date;
   @ApiProperty({ type: String, format: 'date-time' }) endsAt!: Date;

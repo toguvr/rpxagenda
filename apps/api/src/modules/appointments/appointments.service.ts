@@ -48,7 +48,9 @@ export class AppointmentsService {
     // Carrega dados pré-validação fora da transação serializável (read-only, barato).
     const [service, plan, equipments] = await Promise.all([
       this.prisma.scoped.service.findFirst({ where: { id: data.serviceId } }),
-      this.prisma.scoped.plan.findFirst({ where: { id: data.planId } }),
+      data.planId
+        ? this.prisma.scoped.plan.findFirst({ where: { id: data.planId } })
+        : Promise.resolve(null),
       data.equipmentIds.length > 0
         ? this.prisma.scoped.equipment.findMany({
             where: { id: { in: data.equipmentIds } },
@@ -58,7 +60,13 @@ export class AppointmentsService {
     ]);
 
     if (!service) throw new ResourceNotFoundException('Serviço');
-    if (!plan) throw new ResourceNotFoundException('Plano');
+    if (data.planId && !plan) throw new ResourceNotFoundException('Plano');
+    // Agendamento avulso (sem plano) só é permitido para Avaliação.
+    if (!plan && service.type !== 'AVALIACAO') {
+      throw new ResourceConflictException(
+        'Agendamento sem plano só é permitido para Avaliação — selecione um plano.',
+      );
+    }
 
     if (data.equipmentIds.length > 0 && equipments.length !== new Set(data.equipmentIds).size) {
       throw new ResourceConflictException(
@@ -85,7 +93,7 @@ export class AppointmentsService {
               patientId: data.patientId,
               serviceId: data.serviceId,
               planId: data.planId,
-              planType: plan.type,
+              planType: plan?.type,
               startsAt: data.startsAt,
               endsAt,
               equipmentIds: data.equipmentIds,
@@ -106,18 +114,20 @@ export class AppointmentsService {
                 schedulingLeadMinutes: service.schedulingLeadMinutes,
                 acceptedPlanType: service.acceptedPlanType,
               },
-              plan: {
-                id: plan.id,
-                patientId: plan.patientId,
-                serviceId: plan.serviceId,
-                type: plan.type,
-                status: plan.status,
-                remainingSessions: plan.remainingSessions,
-                validUntil: plan.validUntil,
-                weeklyQuota: plan.weeklyQuota,
-                startsAt: plan.startsAt,
-                endsAt: plan.endsAt,
-              },
+              plan: plan
+                ? {
+                    id: plan.id,
+                    patientId: plan.patientId,
+                    serviceId: plan.serviceId,
+                    type: plan.type,
+                    status: plan.status,
+                    remainingSessions: plan.remainingSessions,
+                    validUntil: plan.validUntil,
+                    weeklyQuota: plan.weeklyQuota,
+                    startsAt: plan.startsAt,
+                    endsAt: plan.endsAt,
+                  }
+                : null,
               equipmentIds: data.equipmentIds,
               equipments,
               snapshot,
@@ -132,11 +142,12 @@ export class AppointmentsService {
                 unitId,
                 patientId: data.patientId,
                 serviceId: data.serviceId,
-                planId: data.planId,
+                planId: data.planId ?? null,
                 startsAt: data.startsAt,
                 endsAt,
                 status: 'SCHEDULED',
-                consumedSession: true,
+                // Avulso (sem plano) não consome sessão.
+                consumedSession: !!plan,
                 equipments: {
                   create: data.equipmentIds.map((equipmentId) => ({ equipmentId })),
                 },
@@ -145,7 +156,7 @@ export class AppointmentsService {
             });
 
             // Decrementa saldo do PACKAGE atomicamente.
-            if (plan.type === 'PACKAGE') {
+            if (plan?.type === 'PACKAGE') {
               await tx.plan.update({
                 where: { id: plan.id },
                 data: { remainingSessions: { decrement: 1 } },
@@ -241,8 +252,8 @@ export class AppointmentsService {
                 unitId,
                 patientId: appt.patientId,
                 serviceId: appt.serviceId,
-                planId: appt.planId,
-                planType: appt.plan.type,
+                planId: appt.planId ?? undefined,
+                planType: appt.plan?.type,
                 startsAt: newStartsAt,
                 endsAt,
                 equipmentIds,
@@ -400,7 +411,7 @@ export class AppointmentsService {
         include: { equipments: true },
       });
 
-      if (appt.plan.type === 'PACKAGE' && withinWindow) {
+      if (appt.plan && appt.plan.type === 'PACKAGE' && withinWindow) {
         await tx.plan.update({
           where: { id: appt.plan.id },
           data: { remainingSessions: { increment: 1 } },
@@ -491,7 +502,7 @@ export class AppointmentsService {
       let reverted = false;
       if (appt.status === 'NO_SHOW') {
         // Reverte: devolve saldo do PACKAGE se a sessão tinha sido consumida.
-        if (appt.consumedSession && appt.plan.type === 'PACKAGE') {
+        if (appt.consumedSession && appt.plan && appt.plan.type === 'PACKAGE') {
           await tx.plan.update({
             where: { id: appt.plan.id },
             data: { remainingSessions: { increment: 1 } },
@@ -611,7 +622,7 @@ export class AppointmentsService {
         include: { equipments: true },
       });
 
-      if (appt.plan.type === 'PACKAGE') {
+      if (appt.plan && appt.plan.type === 'PACKAGE') {
         await tx.plan.update({
           where: { id: appt.plan.id },
           data: { remainingSessions: { increment: 1 } },
@@ -681,8 +692,8 @@ export class AppointmentsService {
       unitId: string;
       patientId: string;
       serviceId: string;
-      planId: string;
-      planType: 'PACKAGE' | 'SUBSCRIPTION';
+      planId?: string;
+      planType?: 'PACKAGE' | 'SUBSCRIPTION';
       startsAt: Date;
       endsAt: Date;
       equipmentIds: string[];
@@ -745,7 +756,7 @@ export class AppointmentsService {
 
     // 4c. Uso semanal para SUBSCRIPTION
     let weeklyUsageForPlan = 0;
-    if (args.planType === 'SUBSCRIPTION') {
+    if (args.planType === 'SUBSCRIPTION' && args.planId) {
       const weekStart = startOfWeekMonday(args.now, args.unitTimezone);
       weeklyUsageForPlan = await tx.appointment.count({
         where: {

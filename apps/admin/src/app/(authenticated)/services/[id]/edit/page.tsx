@@ -8,6 +8,7 @@ import { ApiError, api } from '@/lib/api';
 import { Card } from '@/components/Card';
 import { ServiceForm, type ServiceFormValues } from '@/components/ServiceForm';
 import { BusinessHoursEditor } from '@/components/BusinessHoursEditor';
+import { ServiceEquipmentsEditor } from '@/components/ServiceEquipmentsEditor';
 
 export default function EditServicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -77,6 +78,12 @@ export default function EditServicePage({ params }: { params: Promise<{ id: stri
             no mesmo dia (ex: manhã + tarde).
           </p>
           <BusinessHoursEditor serviceId={service.id} />
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card title="Equipamentos do serviço">
+          <ServiceEquipmentsEditor serviceId={service.id} />
         </Card>
       </div>
     </div>

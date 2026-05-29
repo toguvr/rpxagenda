@@ -63,7 +63,8 @@ export interface ValidateAppointmentInput {
   endsAt: Date;
   patientId: string;
   service: ServiceInfo;
-  plan: PlanInfo;
+  /** null = agendamento avulso (sem plano): pula os checks de plano. */
+  plan: PlanInfo | null;
   equipmentIds: string[];
   equipments: EquipmentInfo[];
   snapshot: CapacitySnapshot;
@@ -103,61 +104,64 @@ export function validateAppointment(input: ValidateAppointmentInput): Validation
     };
   }
 
-  // 4a. Plano usável + casa serviço + tipo
-  if (plan.serviceId !== service.id) {
-    return {
-      code: 'PLAN_MISMATCH',
-      message: 'O plano informado não pertence a este serviço.',
-    };
-  }
-  if (plan.patientId !== patientId) {
-    return {
-      code: 'PLAN_MISMATCH',
-      message: 'O plano informado não pertence a este paciente.',
-    };
-  }
-  if (plan.type !== service.acceptedPlanType) {
-    return {
-      code: 'PLAN_MISMATCH',
-      message: `Plano é ${plan.type} mas o serviço aceita ${service.acceptedPlanType}.`,
-    };
-  }
-  if (plan.status !== 'ACTIVE') {
-    return {
-      code: 'PLAN_NOT_USABLE',
-      message: `Plano em status ${plan.status} não permite novos agendamentos.`,
-    };
-  }
-  if (plan.startsAt.getTime() > now.getTime()) {
-    return { code: 'PLAN_NOT_USABLE', message: 'Plano ainda não começou.' };
-  }
-  if (plan.endsAt && plan.endsAt.getTime() <= now.getTime()) {
-    return { code: 'PLAN_NOT_USABLE', message: 'Plano encerrado.' };
-  }
-
-  // 4b. PACKAGE: saldo > 0 e validade não vencida
-  if (plan.type === 'PACKAGE') {
-    if (plan.remainingSessions === null || plan.remainingSessions <= 0) {
-      return { code: 'PLAN_NOT_USABLE', message: 'Pacote sem sessões disponíveis.' };
-    }
-    if (plan.validUntil && plan.validUntil.getTime() <= startsAt.getTime()) {
+  // 4. Plano — pulado em agendamento avulso (plan === null), ex.: Avaliação avulsa.
+  if (plan) {
+    // 4a. Plano usável + casa serviço + tipo
+    if (plan.serviceId !== service.id) {
       return {
-        code: 'PLAN_NOT_USABLE',
-        message: 'Validade do pacote expira antes do horário escolhido.',
+        code: 'PLAN_MISMATCH',
+        message: 'O plano informado não pertence a este serviço.',
       };
     }
-  }
-
-  // 4c. SUBSCRIPTION: quota semanal disponível
-  if (plan.type === 'SUBSCRIPTION') {
-    if (plan.weeklyQuota === null) {
-      return { code: 'PLAN_NOT_USABLE', message: 'Assinatura sem quota semanal configurada.' };
+    if (plan.patientId !== patientId) {
+      return {
+        code: 'PLAN_MISMATCH',
+        message: 'O plano informado não pertence a este paciente.',
+      };
     }
-    if (snapshot.weeklyUsageForPlan >= plan.weeklyQuota) {
+    if (plan.type !== service.acceptedPlanType) {
+      return {
+        code: 'PLAN_MISMATCH',
+        message: `Plano é ${plan.type} mas o serviço aceita ${service.acceptedPlanType}.`,
+      };
+    }
+    if (plan.status !== 'ACTIVE') {
       return {
         code: 'PLAN_NOT_USABLE',
-        message: `Quota semanal de ${plan.weeklyQuota} agendamentos já foi atingida.`,
+        message: `Plano em status ${plan.status} não permite novos agendamentos.`,
       };
+    }
+    if (plan.startsAt.getTime() > now.getTime()) {
+      return { code: 'PLAN_NOT_USABLE', message: 'Plano ainda não começou.' };
+    }
+    if (plan.endsAt && plan.endsAt.getTime() <= now.getTime()) {
+      return { code: 'PLAN_NOT_USABLE', message: 'Plano encerrado.' };
+    }
+
+    // 4b. PACKAGE: saldo > 0 e validade não vencida
+    if (plan.type === 'PACKAGE') {
+      if (plan.remainingSessions === null || plan.remainingSessions <= 0) {
+        return { code: 'PLAN_NOT_USABLE', message: 'Pacote sem sessões disponíveis.' };
+      }
+      if (plan.validUntil && plan.validUntil.getTime() <= startsAt.getTime()) {
+        return {
+          code: 'PLAN_NOT_USABLE',
+          message: 'Validade do pacote expira antes do horário escolhido.',
+        };
+      }
+    }
+
+    // 4c. SUBSCRIPTION: quota semanal disponível
+    if (plan.type === 'SUBSCRIPTION') {
+      if (plan.weeklyQuota === null) {
+        return { code: 'PLAN_NOT_USABLE', message: 'Assinatura sem quota semanal configurada.' };
+      }
+      if (snapshot.weeklyUsageForPlan >= plan.weeklyQuota) {
+        return {
+          code: 'PLAN_NOT_USABLE',
+          message: `Quota semanal de ${plan.weeklyQuota} agendamentos já foi atingida.`,
+        };
+      }
     }
   }
 

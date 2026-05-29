@@ -109,7 +109,13 @@
       "Bash(jq --arg img \":rpx-api.api.99\" '.api.image = $img' deploy/containers.json | jq -r '{image: .api.image, env_keys: \\(.api.environment | keys\\)}')",
       "Read(//Users/augustotelles/projetos/rpxagenda/**)",
       "Bash(awk '/^model ScheduleException /,/^}/' apps/api/prisma/schema.prisma)",
-      "Bash(awk '/^model Service /,/^}/' apps/api/prisma/schema.prisma)"
+      "Bash(awk '/^model Service /,/^}/' apps/api/prisma/schema.prisma)",
+      "Bash(awk '/^model ServiceEquipment /,/^}/' apps/api/prisma/schema.prisma)",
+      "Bash(awk '/^model Equipment /,/^}/' apps/api/prisma/schema.prisma)",
+      "Bash(awk '/^enum ServiceType/,/^}/' apps/api/prisma/schema.prisma)",
+      "Bash(awk '/^model Protocol /,/^}/' apps/api/prisma/schema.prisma)",
+      "Bash(awk '/^model Appointment /,/^}/' apps/api/prisma/schema.prisma)",
+      "Bash(pnpm --filter @rpx/api add @aws-sdk/client-s3@^3 @aws-sdk/s3-request-presigner@^3)"
     ],
     "additionalDirectories": [
       "/Users/augustotelles/projetos/rpxagenda/apps",

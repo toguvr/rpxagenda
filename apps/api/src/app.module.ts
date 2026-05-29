@@ -22,6 +22,7 @@ import { IdfaceModule } from './modules/integrations/idface/idface.module';
 import { ProtocolsModule } from './modules/protocols/protocols.module';
 import { MedicalRecordsModule } from './modules/medical-records/medical-records.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { StorageModule } from './modules/storage/storage.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.interceptor';
@@ -48,6 +49,7 @@ import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.int
     EquipmentsModule,
     ProfessionalsModule,
     PatientsModule,
+    StorageModule,
     SchedulesModule,
     PlansModule,
     AppointmentsModule,

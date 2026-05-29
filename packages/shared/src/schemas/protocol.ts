@@ -5,6 +5,8 @@ export const createProtocolRequestSchema = z.object({
   patientId: cuidSchema,
   professionalId: cuidSchema,
   planId: cuidSchema,
+  /** Agendamento de avaliação que originou o protocolo (opcional). */
+  appointmentId: cuidSchema.optional(),
   totalSessions: z.number().int().positive().max(500),
   sessionsPerWeek: z.number().int().positive().max(14),
   diagnosis: z.string().trim().min(3).max(2000),
@@ -29,6 +31,7 @@ export const protocolResponseSchema = z.object({
   patientId: cuidSchema,
   professionalId: cuidSchema,
   planId: cuidSchema,
+  appointmentId: cuidSchema.nullable(),
   totalSessions: z.number().int(),
   sessionsPerWeek: z.number().int(),
   diagnosis: z.string(),

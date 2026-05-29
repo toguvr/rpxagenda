@@ -61,6 +61,7 @@ export class ProtocolsService {
         patientId: data.patientId,
         professionalId: data.professionalId,
         planId: data.planId,
+        appointmentId: data.appointmentId ?? null,
         totalSessions: data.totalSessions,
         sessionsPerWeek: data.sessionsPerWeek,
         diagnosis: data.diagnosis,
@@ -149,6 +150,7 @@ export class ProtocolsService {
     patientId: string;
     professionalId: string;
     planId: string;
+    appointmentId: string | null;
     totalSessions: number;
     sessionsPerWeek: number;
     diagnosis: string;
@@ -164,6 +166,7 @@ export class ProtocolsService {
       patientId: row.patientId,
       professionalId: row.professionalId,
       planId: row.planId,
+      appointmentId: row.appointmentId,
       totalSessions: row.totalSessions,
       sessionsPerWeek: row.sessionsPerWeek,
       diagnosis: row.diagnosis,

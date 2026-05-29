@@ -224,6 +224,28 @@ describe('validateAppointment', () => {
       ),
     ).toBeNull();
   });
+
+  it('avulso (plan null) → null quando capacidade ok (pula checks de plano)', () => {
+    expect(validateAppointment(buildInput({ plan: null }))).toBeNull();
+  });
+
+  it('avulso (plan null) ainda respeita capacidade do slot → SLOT_FULL', () => {
+    const f = validateAppointment(
+      buildInput({ plan: null, snapshot: { ...emptySnapshot, serviceSlotUsage: 5 } }),
+    );
+    expect(f?.code).toBe('SLOT_FULL');
+  });
+
+  it('avulso (plan null) ainda respeita capacidade de equipamento', () => {
+    const f = validateAppointment(
+      buildInput({
+        plan: null,
+        equipmentIds: ['eq_bola'],
+        snapshot: { ...emptySnapshot, equipmentUsage: { eq_bola: 1 } },
+      }),
+    );
+    expect(f?.code).toBe('EQUIPMENT_UNAVAILABLE');
+  });
 });
 
 function buildReschedule(

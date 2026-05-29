@@ -66,6 +66,10 @@ export default function AppointmentsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [calHeight, setCalHeight] = useState(700);
 
+  // filtros
+  const [serviceFilter, setServiceFilter] = useState('');
+  const [patientFilter, setPatientFilter] = useState('');
+
   // modais
   const [detail, setDetail] = useState<AppointmentResponse | null>(null);
   const [cancelTarget, setCancelTarget] = useState<AppointmentResponse | null>(null);
@@ -116,23 +120,38 @@ export default function AppointmentsPage() {
 
   const events = useMemo<EventInput[]>(
     () =>
-      appointments.map((a) => {
-        const style = STATUS_EVENT[a.status] ?? STATUS_EVENT.SCHEDULED;
-        const patient = patients.get(a.patientId);
-        const service = services.get(a.serviceId);
-        return {
-          id: a.id,
-          title: `${patient?.fullName ?? 'Paciente'} · ${service?.name ?? 'Serviço'}`,
-          start: a.startsAt,
-          end: a.endsAt,
-          editable: MOVABLE.has(a.status),
-          backgroundColor: style.bg,
-          borderColor: style.border,
-          textColor: style.text,
-          extendedProps: { appt: a },
-        };
-      }),
-    [appointments, patients, services],
+      appointments
+        .filter(
+          (a) =>
+            (!serviceFilter || a.serviceId === serviceFilter) &&
+            (!patientFilter || a.patientId === patientFilter),
+        )
+        .map((a) => {
+          const style = STATUS_EVENT[a.status] ?? STATUS_EVENT.SCHEDULED;
+          const patient = patients.get(a.patientId);
+          const service = services.get(a.serviceId);
+          return {
+            id: a.id,
+            title: `${patient?.fullName ?? 'Paciente'} · ${service?.name ?? 'Serviço'}`,
+            start: a.startsAt,
+            end: a.endsAt,
+            editable: MOVABLE.has(a.status),
+            backgroundColor: style.bg,
+            borderColor: style.border,
+            textColor: style.text,
+            extendedProps: { appt: a },
+          };
+        }),
+    [appointments, patients, services, serviceFilter, patientFilter],
+  );
+
+  const serviceOptions = useMemo(
+    () => Array.from(services.values()).sort((a, b) => a.name.localeCompare(b.name)),
+    [services],
+  );
+  const patientOptions = useMemo(
+    () => Array.from(patients.values()).sort((a, b) => a.fullName.localeCompare(b.fullName)),
+    [patients],
   );
 
   function handleDatesSet(arg: DatesSetArg) {
@@ -244,6 +263,44 @@ export default function AppointmentsPage() {
         </div>
       )}
 
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+        <select
+          value={serviceFilter}
+          onChange={(e) => setServiceFilter(e.target.value)}
+          className="input sm:max-w-xs"
+        >
+          <option value="">Todos os serviços</option>
+          {serviceOptions.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={patientFilter}
+          onChange={(e) => setPatientFilter(e.target.value)}
+          className="input sm:max-w-xs"
+        >
+          <option value="">Todos os pacientes</option>
+          {patientOptions.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.fullName}
+            </option>
+          ))}
+        </select>
+        {(serviceFilter || patientFilter) && (
+          <button
+            onClick={() => {
+              setServiceFilter('');
+              setPatientFilter('');
+            }}
+            className="btn-outline whitespace-nowrap"
+          >
+            Limpar filtros
+          </button>
+        )}
+      </div>
+
       <div className="rounded-lg border border-neutral-200 bg-white p-2 sm:p-4">
         <FullCalendar
           plugins={[timeGridPlugin, interactionPlugin]}
@@ -305,6 +362,14 @@ export default function AppointmentsPage() {
               >
                 {STATUS_LABELS[detail.status] ?? detail.status}
               </span>
+              <div className="pt-1">
+                <Link
+                  href={`/patients/${detail.patientId}?registerEval=${detail.id}`}
+                  className="text-sm font-medium text-brand-cyanDark hover:underline"
+                >
+                  Registrar avaliação →
+                </Link>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2 border-t border-neutral-100 pt-3">

@@ -14,7 +14,8 @@ export type AppointmentStatus = (typeof AppointmentStatus)[keyof typeof Appointm
 export const createAppointmentRequestSchema = z.object({
   patientId: cuidSchema,
   serviceId: cuidSchema,
-  planId: cuidSchema,
+  /** Opcional: ausente = agendamento avulso (sem plano), permitido só para Avaliação. */
+  planId: cuidSchema.optional(),
   startsAt: z.coerce.date(),
   equipmentIds: z.array(cuidSchema).default([]),
 });
@@ -42,7 +43,7 @@ export const appointmentResponseSchema = z.object({
   unitId: cuidSchema,
   patientId: cuidSchema,
   serviceId: cuidSchema,
-  planId: cuidSchema,
+  planId: cuidSchema.nullable(),
   professionalId: cuidSchema.nullable(),
   startsAt: z.coerce.date(),
   endsAt: z.coerce.date(),

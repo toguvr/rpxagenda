@@ -27,6 +27,7 @@ export function CreateProtocolModal({
   professionals,
   equipments,
   defaultProfessionalId,
+  appointmentId,
   onCreated,
 }: {
   open: boolean;
@@ -38,6 +39,8 @@ export function CreateProtocolModal({
   professionals: ProfessionalResponse[];
   equipments: EquipmentResponse[];
   defaultProfessionalId: string;
+  /** Agendamento de avaliação que originou o protocolo (opcional). */
+  appointmentId?: string;
   onCreated: (protocol: ProtocolResponse) => void;
 }) {
   const [planId, setPlanId] = useState('');
@@ -70,6 +73,7 @@ export function CreateProtocolModal({
         patientId,
         professionalId,
         planId,
+        appointmentId: appointmentId ?? undefined,
         totalSessions,
         sessionsPerWeek,
         diagnosis: diagnosis.trim(),

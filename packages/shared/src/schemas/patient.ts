@@ -31,6 +31,34 @@ export type CreatePatientRequest = z.infer<typeof createPatientRequestSchema>;
 export const updatePatientRequestSchema = createPatientRequestSchema.partial();
 export type UpdatePatientRequest = z.infer<typeof updatePatientRequestSchema>;
 
+// ---------- foto (upload via S3 presigned) ----------
+
+/** Solicita uma URL assinada de upload (PUT) para a foto do paciente. */
+export const photoUploadUrlRequestSchema = z.object({
+  contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+});
+export type PhotoUploadUrlRequest = z.infer<typeof photoUploadUrlRequestSchema>;
+
+export const photoUploadUrlResponseSchema = z.object({
+  /** Object key gerada pelo backend — o cliente devolve depois para confirmar. */
+  key: z.string(),
+  /** URL assinada para PUT direto no S3 (expira em poucos minutos). */
+  uploadUrl: z.string().url(),
+});
+export type PhotoUploadUrlResponse = z.infer<typeof photoUploadUrlResponseSchema>;
+
+/** Confirma a foto após o upload concluir no S3. */
+export const savePatientPhotoRequestSchema = z.object({
+  key: z.string().min(1),
+});
+export type SavePatientPhotoRequest = z.infer<typeof savePatientPhotoRequestSchema>;
+
+export const patientPhotoUrlResponseSchema = z.object({
+  /** URL assinada de leitura (GET), ou null se o paciente não tem foto. */
+  url: z.string().url().nullable(),
+});
+export type PatientPhotoUrlResponse = z.infer<typeof patientPhotoUrlResponseSchema>;
+
 export const patientResponseSchema = z.object({
   id: cuidSchema,
   unitId: cuidSchema,
@@ -44,6 +72,8 @@ export const patientResponseSchema = z.object({
   notes: z.string().nullable(),
   /** Preenchido apenas para ADMIN; `null` para PROFESSIONAL/PATIENT. */
   adminReference: z.string().nullable(),
+  /** Object key da foto no S3 (null = sem foto). A URL é obtida via endpoint de foto. */
+  photoKey: z.string().nullable(),
   hasIdfaceEnrolled: z.boolean(),
   hasUserAccount: z.boolean(),
   createdAt: z.coerce.date(),

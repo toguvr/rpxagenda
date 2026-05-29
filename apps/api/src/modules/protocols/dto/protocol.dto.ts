@@ -4,6 +4,8 @@ export class CreateProtocolDto {
   @ApiProperty() patientId!: string;
   @ApiProperty() professionalId!: string;
   @ApiProperty() planId!: string;
+  @ApiProperty({ required: false, description: 'Agendamento de avaliação de origem.' })
+  appointmentId?: string;
   @ApiProperty({ example: 20 }) totalSessions!: number;
   @ApiProperty({ example: 2 }) sessionsPerWeek!: number;
   @ApiProperty({ example: 'Hérnia de disco L4-L5' }) diagnosis!: string;
@@ -21,6 +23,7 @@ export class ProtocolResponseDto {
   @ApiProperty() patientId!: string;
   @ApiProperty() professionalId!: string;
   @ApiProperty() planId!: string;
+  @ApiProperty({ nullable: true }) appointmentId!: string | null;
   @ApiProperty() totalSessions!: number;
   @ApiProperty() sessionsPerWeek!: number;
   @ApiProperty() diagnosis!: string;

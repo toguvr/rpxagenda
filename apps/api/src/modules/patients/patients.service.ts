@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Prisma, UserRole, type Patient as PatientRow } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
 import * as argon2 from 'argon2';
@@ -9,11 +9,13 @@ import type {
   InviteResponse,
   LoginResponse,
   PatientResponse,
+  PhotoUploadUrlResponse,
   UpdatePatientRequest,
 } from '@rpx/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CLS_KEYS } from '../../common/cls/cls-keys';
 import { TypedConfigService } from '../../config/typed-config.service';
+import { STORAGE_PROVIDER, type IStorageProvider } from '../storage/storage.types';
 import {
   InviteInvalidException,
   ResourceConflictException,
@@ -31,7 +33,37 @@ export class PatientsService {
     private readonly config: TypedConfigService,
     private readonly auth: AuthService,
     private readonly cls: ClsService,
+    @Inject(STORAGE_PROVIDER) private readonly storage: IStorageProvider,
   ) {}
+
+  // -------------- foto do paciente (S3 presigned) --------------
+
+  /** Gera a object key + URL assinada de upload (PUT direto no S3). */
+  async getPhotoUploadUrl(id: string, contentType: string): Promise<PhotoUploadUrlResponse> {
+    await this.findById(id);
+    const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg';
+    const key = `patients/${id}/${crypto.randomUUID()}.${ext}`;
+    const uploadUrl = await this.storage.presignUpload(key, contentType);
+    return { key, uploadUrl };
+  }
+
+  /** Confirma a foto após o upload: valida a key e persiste em photoKey. */
+  async savePhoto(id: string, key: string): Promise<PatientResponse> {
+    await this.findById(id);
+    if (!key.startsWith(`patients/${id}/`)) {
+      throw new ResourceConflictException('A key informada não pertence a este paciente.');
+    }
+    const row = await this.prisma.scoped.patient.update({ where: { id }, data: { photoKey: key } });
+    return this.toResponse(row);
+  }
+
+  /** URL assinada de leitura da foto, ou null se não houver. */
+  async getPhotoUrl(id: string): Promise<{ url: string | null }> {
+    const patient = await this.prisma.scoped.patient.findFirst({ where: { id } });
+    if (!patient) throw new ResourceNotFoundException('Paciente');
+    if (!patient.photoKey) return { url: null };
+    return { url: await this.storage.presignDownload(patient.photoKey) };
+  }
 
   /** Apenas ADMIN pode definir/visualizar o apelido/referência interna. */
   private isAdmin(): boolean {
@@ -227,6 +259,7 @@ export class PatientsService {
       notes: row.notes,
       // Oculto de PROFESSIONAL/PATIENT — só ADMIN recebe o valor.
       adminReference: this.isAdmin() ? row.adminReference : null,
+      photoKey: row.photoKey,
       hasIdfaceEnrolled: !!row.idfaceUserId,
       hasUserAccount: !!row.userId,
       createdAt: row.createdAt,

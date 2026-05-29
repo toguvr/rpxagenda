@@ -33,6 +33,12 @@ export const envSchema = z.object({
    * IdfaceWebhookGuard).
    */
   IDFACE_WEBHOOK_SECRET: z.string().min(8).default('dev-idface-secret-trocar-em-prod'),
+
+  // Storage S3 para fotos de pacientes. Sem S3_BUCKET, o upload fica desabilitado
+  // (endpoints respondem com erro claro). Credenciais vêm da cadeia padrão do AWS SDK
+  // (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY no environment) ou de role anexada.
+  S3_BUCKET: z.string().optional(),
+  S3_REGION: z.string().default('us-east-1'),
 });
 
 /**

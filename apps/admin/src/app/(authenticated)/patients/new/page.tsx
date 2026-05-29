@@ -7,9 +7,11 @@ import { UserRole, type PatientResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 import { getCurrentUser } from '@/lib/auth';
 import { Card } from '@/components/Card';
+import { Modal } from '@/components/Modal';
 
 export default function NewPatientPage() {
   const router = useRouter();
+  const [created, setCreated] = useState<PatientResponse | null>(null);
   const [fullName, setFullName] = useState('');
   const [cpf, setCpf] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -43,8 +45,9 @@ export default function NewPatientPage() {
       if (emergencyContact.trim()) body.emergencyContact = emergencyContact.trim();
       if (notes.trim()) body.notes = notes.trim();
       if (isAdmin && adminReference.trim()) body.adminReference = adminReference.trim();
-      const created = await api<PatientResponse>('/patients', { method: 'POST', body });
-      router.replace(`/patients/${created.id}`);
+      const result = await api<PatientResponse>('/patients', { method: 'POST', body });
+      // Em vez de ir direto pra ficha, oferece agendar a avaliação para agilizar.
+      setCreated(result);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -197,6 +200,34 @@ export default function NewPatientPage() {
           </div>
         </form>
       </Card>
+
+      <Modal
+        open={!!created}
+        onClose={() => created && router.replace(`/patients/${created.id}`)}
+        title="Paciente cadastrado"
+      >
+        {created && (
+          <div className="space-y-4">
+            <p className="text-sm text-neutral-600">
+              <strong>{created.fullName}</strong> foi cadastrado. Deseja já agendar a avaliação?
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                onClick={() => router.replace(`/patients/${created.id}`)}
+                className="btn-outline"
+              >
+                Agora não
+              </button>
+              <button
+                onClick={() => router.push(`/appointments/new?patientId=${created.id}&eval=1`)}
+                className="btn-primary"
+              >
+                Agendar avaliação
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
