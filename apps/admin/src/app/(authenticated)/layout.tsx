@@ -71,9 +71,11 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
       >
         <div className="flex items-center justify-between border-b border-neutral-800 p-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded bg-brand-cyan font-bold">
-              R
-            </div>
+            <img
+              src="/logo.jpg"
+              alt="RPX Agenda"
+              className="h-10 w-10 rounded bg-white object-contain"
+            />
             <div className="min-w-0">
               <div className="font-bold text-white">RPX Agenda</div>
               <div className="truncate text-xs text-neutral-400">

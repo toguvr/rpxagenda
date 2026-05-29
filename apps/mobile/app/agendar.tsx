@@ -191,7 +191,7 @@ export default function AgendarScreen() {
               Estamos aqui pra te ajudar.
             </Text>
           </View>
-          <Image source={atendente} className="h-40 w-40" resizeMode="contain" />
+          <Image source={atendente} className="h-48 w-48" resizeMode="contain" />
         </View>
 
         {/* Passo 1 — plano */}
