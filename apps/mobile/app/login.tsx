@@ -60,7 +60,7 @@ export default function LoginScreen() {
         className="flex-1"
       >
         <ScrollView
-          contentContainerClassName="flex-grow px-6 pb-8 pt-2"
+          contentContainerClassName="flex-grow justify-center px-6 pb-8 pt-2"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -145,6 +145,14 @@ export default function LoginScreen() {
                 />
               </>
             )}
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/forgot-password')}
+            hitSlop={8}
+            className="mt-4 self-center"
+          >
+            <Text className="text-[14px] font-semibold text-brand-cyan">Esqueci a senha</Text>
           </Pressable>
 
           {/* Rodapé — primeiro acesso */}
