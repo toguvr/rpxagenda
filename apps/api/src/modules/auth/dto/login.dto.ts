@@ -13,6 +13,19 @@ export class RefreshDto {
   refreshToken!: string;
 }
 
+export class ForgotPasswordDto {
+  @ApiProperty({ format: 'email' })
+  email!: string;
+}
+
+export class ResetPasswordDto {
+  @ApiProperty({ description: 'Token recebido por e-mail.' })
+  token!: string;
+
+  @ApiProperty({ minLength: 8 })
+  password!: string;
+}
+
 export class AuthenticatedUserDto {
   @ApiProperty() id!: string;
   @ApiProperty({ format: 'email' }) email!: string;

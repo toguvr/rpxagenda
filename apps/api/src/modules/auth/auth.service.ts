@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import * as crypto from 'node:crypto';
@@ -6,12 +6,16 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TypedConfigService } from '../../config/typed-config.service';
 import {
   InvalidCredentialsException,
+  PasswordResetInvalidException,
   RefreshTokenInvalidException,
 } from '../../common/exceptions/app.exception';
+import { EMAIL_PROVIDER, type IEmailProvider } from '../email/email.types';
 import type { JwtAccessPayload, RequestUser } from './types';
 import type { LoginResponse } from '@rpx/shared';
 
 const REFRESH_TOKEN_BYTES = 48; // 384 bits
+const RESET_TOKEN_BYTES = 32;
+const RESET_TTL_MINUTES = 30;
 
 @Injectable()
 export class AuthService {
@@ -21,6 +25,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: TypedConfigService,
+    @Inject(EMAIL_PROVIDER) private readonly email: IEmailProvider,
   ) {}
 
   async login(email: string, password: string): Promise<LoginResponse> {
@@ -81,6 +86,71 @@ export class AuthService {
       where: { tokenHash, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+  }
+
+  /**
+   * Esqueci a senha: gera um token de redefinição e envia o link por e-mail.
+   * Anti-enumeração — sempre resolve sem revelar se o e-mail existe. Falha de
+   * envio é logada (best-effort), nunca propagada ao cliente.
+   */
+  async requestPasswordReset(email: string): Promise<void> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (!user) return;
+
+    const token = crypto.randomBytes(RESET_TOKEN_BYTES).toString('base64url');
+    const tokenHash = this.hashRefreshToken(token);
+    const expiresAt = new Date(Date.now() + RESET_TTL_MINUTES * 60_000);
+    await this.prisma.passwordReset.create({
+      data: { userId: user.id, tokenHash, expiresAt },
+    });
+
+    const url = `${this.config.get('ADMIN_PUBLIC_URL')}/reset-password?token=${token}`;
+    const firstName = user.fullName.split(' ')[0];
+    try {
+      await this.email.send({
+        to: user.email,
+        subject: 'Redefinição de senha — RPX Agenda',
+        text:
+          `Olá, ${firstName}!\n\n` +
+          `Recebemos um pedido para redefinir sua senha. Use o link abaixo ` +
+          `(válido por ${RESET_TTL_MINUTES} minutos):\n${url}\n\n` +
+          `Se não foi você, ignore este e-mail.`,
+        html:
+          `<p>Olá, <strong>${firstName}</strong>!</p>` +
+          `<p>Recebemos um pedido para redefinir sua senha. O link abaixo é válido por ` +
+          `${RESET_TTL_MINUTES} minutos:</p>` +
+          `<p><a href="${url}">Redefinir minha senha</a></p>` +
+          `<p>Se não foi você, ignore este e-mail.</p>`,
+      });
+    } catch (err) {
+      this.logger.warn(
+        { userId: user.id, err: err instanceof Error ? err.message : String(err) },
+        'Falha ao enviar e-mail de redefinição de senha (pedido seguiu normalmente).',
+      );
+    }
+  }
+
+  /**
+   * Redefine a senha a partir do token do e-mail. Consome o token (usedAt) e
+   * revoga as sessões (refresh tokens) ativas do usuário por segurança.
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const tokenHash = this.hashRefreshToken(token);
+    const reset = await this.prisma.passwordReset.findUnique({ where: { tokenHash } });
+    if (!reset || reset.usedAt || reset.expiresAt.getTime() <= Date.now()) {
+      throw new PasswordResetInvalidException();
+    }
+    const passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: reset.userId }, data: { passwordHash } });
+      await tx.passwordReset.update({ where: { id: reset.id }, data: { usedAt: new Date() } });
+      await tx.refreshToken.updateMany({
+        where: { userId: reset.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    });
+    this.logger.log({ userId: reset.userId }, 'Senha redefinida via recuperação.');
   }
 
   /**

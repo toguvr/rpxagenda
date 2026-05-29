@@ -51,6 +51,13 @@ export class InviteInvalidException extends AppException {
   }
 }
 
+export class PasswordResetInvalidException extends AppException {
+  readonly code = 'PASSWORD_RESET_INVALID';
+  constructor(message = 'Link de redefinição inválido, expirado ou já utilizado') {
+    super(message, HttpStatus.GONE);
+  }
+}
+
 /**
  * Falhas das regras de capacidade (§4.3 do CLAUDE.md). O code expõe qual check
  * falhou para o cliente tratar com mensagem específica.

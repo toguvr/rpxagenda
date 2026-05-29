@@ -124,13 +124,32 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  unit          Unit           @relation(fields: [unitId], references: [id])
-  refreshTokens RefreshToken[]
-  professional  Professional?
-  patient       Patient?
+  unit           Unit            @relation(fields: [unitId], references: [id])
+  refreshTokens  RefreshToken[]
+  passwordResets PasswordReset[]
+  professional   Professional?
+  patient        Patient?
 
   @@index([unitId])
   @@map("users")
+}
+
+/// Token de redefinição de senha (esqueci a senha). Guardamos apenas o hash do
+/// token; o token plain só trafega no link enviado por e-mail. Idempotente por
+/// hash; expira em minutos e é consumido (usedAt) ao redefinir.
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_resets")
 }
 
 model RefreshToken {

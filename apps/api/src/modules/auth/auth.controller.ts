@@ -1,10 +1,24 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UsePipes } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { loginRequestSchema, refreshRequestSchema, type LoginResponse } from '@rpx/shared';
+import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  forgotPasswordRequestSchema,
+  loginRequestSchema,
+  refreshRequestSchema,
+  resetPasswordRequestSchema,
+  type ForgotPasswordRequest,
+  type LoginResponse,
+  type ResetPasswordRequest,
+} from '@rpx/shared';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { ZodValidationPipe } from './pipes/zod-validation.pipe';
-import { LoginDto, LoginResponseDto, RefreshDto } from './dto/login.dto';
+import {
+  ForgotPasswordDto,
+  LoginDto,
+  LoginResponseDto,
+  RefreshDto,
+  ResetPasswordDto,
+} from './dto/login.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -38,5 +52,28 @@ export class AuthController {
   @UsePipes(new ZodValidationPipe(refreshRequestSchema))
   async logout(@Body() body: RefreshDto): Promise<void> {
     await this.auth.logout(body.refreshToken);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Solicita redefinição de senha. Envia link por e-mail se o usuário existir.',
+  })
+  @ApiNoContentResponse()
+  @UsePipes(new ZodValidationPipe(forgotPasswordRequestSchema))
+  async forgotPassword(@Body() body: ForgotPasswordDto): Promise<void> {
+    await this.auth.requestPasswordReset((body as ForgotPasswordRequest).email);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Redefine a senha a partir do token recebido por e-mail.' })
+  @ApiNoContentResponse()
+  @UsePipes(new ZodValidationPipe(resetPasswordRequestSchema))
+  async resetPassword(@Body() body: ResetPasswordDto): Promise<void> {
+    const { token, password } = body as ResetPasswordRequest;
+    await this.auth.resetPassword(token, password);
   }
 }

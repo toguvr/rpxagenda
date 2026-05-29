@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ApiError, login } from '@/lib/api';
 import { saveSession } from '@/lib/auth';
 
@@ -32,16 +33,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-bgDark p-4">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-xl p-8">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded bg-brand-cyan flex items-center justify-center">
-            <span className="text-white font-bold text-xl">R</span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-brand-black">RPX Agenda</h1>
-            <p className="text-sm text-neutral-500">Painel administrativo</p>
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-brand-bgDark p-4">
+      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-xl">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <img src="/logo.jpg" alt="RPX Agenda" className="h-28 w-28 object-contain" />
+          <p className="mt-2 text-sm text-neutral-500">Painel administrativo</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -80,6 +76,12 @@ export default function LoginPage() {
             {loading ? 'Entrando…' : 'Entrar'}
           </button>
         </form>
+
+        <div className="mt-4 text-center">
+          <Link href="/forgot-password" className="text-sm text-brand-cyanDark hover:underline">
+            Esqueci a senha
+          </Link>
+        </div>
       </div>
     </div>
   );
