@@ -247,6 +247,9 @@ model Patient {
   email             String?
   emergencyContact  String?
   notes             String?
+  // Campos opcionais (contexto clínico).
+  profession        String?
+  activity          String?
   // Apelido/referência interna — visível apenas para ADMIN (oculto de PROFESSIONAL/PATIENT).
   adminReference    String?
   // Chave (object key) da foto do paciente no bucket S3. URL é assinada sob demanda.

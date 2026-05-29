@@ -8,6 +8,8 @@ export class CreatePatientDto {
   @ApiProperty({ required: false, format: 'email' }) email?: string;
   @ApiProperty({ required: false }) emergencyContact?: string;
   @ApiProperty({ required: false }) notes?: string;
+  @ApiProperty({ required: false }) profession?: string;
+  @ApiProperty({ required: false }) activity?: string;
   @ApiProperty({ required: false, description: 'Apelido/referência interna — só ADMIN.' })
   adminReference?: string;
 }
@@ -25,6 +27,8 @@ export class PatientResponseDto {
   @ApiProperty({ nullable: true }) email!: string | null;
   @ApiProperty({ nullable: true }) emergencyContact!: string | null;
   @ApiProperty({ nullable: true }) notes!: string | null;
+  @ApiProperty({ nullable: true }) profession!: string | null;
+  @ApiProperty({ nullable: true }) activity!: string | null;
   @ApiProperty({ nullable: true, description: 'Apelido/referência interna — null p/ não-ADMIN.' })
   adminReference!: string | null;
   @ApiProperty({ nullable: true, description: 'Object key da foto no S3.' })

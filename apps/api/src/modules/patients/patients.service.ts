@@ -298,6 +298,8 @@ export class PatientsService {
       email: row.email,
       emergencyContact: row.emergencyContact,
       notes: row.notes,
+      profession: row.profession,
+      activity: row.activity,
       // Oculto de PROFESSIONAL/PATIENT — só ADMIN recebe o valor.
       adminReference: this.isAdmin() ? row.adminReference : null,
       photoKey: row.photoKey,

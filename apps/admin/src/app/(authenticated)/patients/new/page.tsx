@@ -18,6 +18,8 @@ export default function NewPatientPage() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
+  const [profession, setProfession] = useState('');
+  const [activity, setActivity] = useState('');
   const [notes, setNotes] = useState('');
   const [adminReference, setAdminReference] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
@@ -43,6 +45,8 @@ export default function NewPatientPage() {
       };
       if (email.trim()) body.email = email.trim();
       if (emergencyContact.trim()) body.emergencyContact = emergencyContact.trim();
+      if (profession.trim()) body.profession = profession.trim();
+      if (activity.trim()) body.activity = activity.trim();
       if (notes.trim()) body.notes = notes.trim();
       if (isAdmin && adminReference.trim()) body.adminReference = adminReference.trim();
       const result = await api<PatientResponse>('/patients', { method: 'POST', body });
@@ -141,6 +145,25 @@ export default function NewPatientPage() {
               value={emergencyContact}
               onChange={(e) => setEmergencyContact(e.target.value)}
               placeholder="Nome - telefone"
+              className="input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Profissão</label>
+            <input
+              type="text"
+              value={profession}
+              onChange={(e) => setProfession(e.target.value)}
+              className="input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Atividade</label>
+            <input
+              type="text"
+              value={activity}
+              onChange={(e) => setActivity(e.target.value)}
+              placeholder="Atividade física / ocupacional"
               className="input"
             />
           </div>

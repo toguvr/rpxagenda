@@ -268,6 +268,18 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
               <dt className="text-neutral-500">Cadastrado em</dt>
               <dd>{formatDate(patient.createdAt)}</dd>
             </div>
+            {patient.profession && (
+              <div className="flex justify-between gap-3">
+                <dt className="text-neutral-500">Profissão</dt>
+                <dd className="text-right">{patient.profession}</dd>
+              </div>
+            )}
+            {patient.activity && (
+              <div className="flex justify-between gap-3">
+                <dt className="text-neutral-500">Atividade</dt>
+                <dd className="text-right">{patient.activity}</dd>
+              </div>
+            )}
           </dl>
         </Card>
         <Card title="Acesso ao app">
