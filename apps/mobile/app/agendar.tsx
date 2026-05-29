@@ -199,7 +199,7 @@ export default function AgendarScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Boas-vindas — a recepcionista contextualiza o ato de agendar */}
-        <View className="flex-row items-center gap-3 overflow-hidden rounded-3xl bg-brand-cyanSoft px-4 py-2">
+        <View className="flex-row items-center gap-3 overflow-hidden rounded-3xl bg-brand-cyanSoft pl-4">
           <View className="flex-1">
             <Text className="text-[18px] font-extrabold leading-6 text-brand-cyanDeep">
               Vamos agendar{'\n'}sua sessão
