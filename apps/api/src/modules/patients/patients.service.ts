@@ -69,6 +69,18 @@ export class PatientsService {
     return { url: await this.storage.presignDownload(patient.photoKey) };
   }
 
+  /** Endpoint do app: foto do paciente autenticado (resolve pelo userId). */
+  async getMyPhotoUrl(): Promise<{ url: string | null }> {
+    const userId = this.cls.get<string>(CLS_KEYS.USER_ID);
+    if (!userId) throw new Error('User context missing.');
+    const patient = await this.prisma.patient.findUnique({
+      where: { userId },
+      select: { photoKey: true },
+    });
+    if (!patient?.photoKey) return { url: null };
+    return { url: await this.storage.presignDownload(patient.photoKey) };
+  }
+
   /** Apenas ADMIN pode definir/visualizar o apelido/referência interna. */
   private isAdmin(): boolean {
     return this.cls.get<string>(CLS_KEYS.ROLE) === UserRole.ADMIN;

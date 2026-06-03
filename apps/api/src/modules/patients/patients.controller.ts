@@ -145,6 +145,14 @@ export class PatientsController {
     return this.patients.getPhotoUrl(id);
   }
 
+  @ApiBearerAuth('access-token')
+  @Roles(UserRole.PATIENT)
+  @Get('me/photo-url')
+  @ApiOperation({ summary: 'URL assinada (GET) da foto do paciente autenticado (app).' })
+  myPhotoUrl(): Promise<PatientPhotoUrlResponse> {
+    return this.patients.getMyPhotoUrl();
+  }
+
   // ---------- invites (admin gera; redemption é pública) ----------
 
   @ApiBearerAuth('access-token')

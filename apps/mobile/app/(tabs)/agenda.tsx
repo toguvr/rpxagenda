@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +48,12 @@ export default function AgendaScreen() {
   const plansQuery = useQuery({
     queryKey: ['me', 'plans'],
     queryFn: () => api<PlanResponse[]>('/me/plans'),
+  });
+  // URL assinada (S3) da foto — refetch periódico cobre eventual expiração.
+  const photoQuery = useQuery({
+    queryKey: ['me', 'photo-url'],
+    queryFn: () => api<{ url: string | null }>('/me/photo-url'),
+    staleTime: 10 * 60 * 1000,
   });
 
   function invalidate() {
@@ -123,7 +129,11 @@ export default function AgendaScreen() {
 
   return (
     <Screen>
-      <HomeHeader firstName={firstName} onLogout={askLogout} />
+      <HomeHeader
+        firstName={firstName}
+        photoUrl={photoQuery.data?.url ?? null}
+        onLogout={askLogout}
+      />
 
       {isLoading ? (
         <LoadingState label="Carregando sua agenda…" />
@@ -209,14 +219,30 @@ export default function AgendaScreen() {
   );
 }
 
-function HomeHeader({ firstName, onLogout }: { firstName: string | null; onLogout: () => void }) {
+function HomeHeader({
+  firstName,
+  photoUrl,
+  onLogout,
+}: {
+  firstName: string | null;
+  photoUrl: string | null;
+  onLogout: () => void;
+}) {
   return (
     <View className="flex-row items-center gap-3 px-5 pb-3 pt-2">
-      <View className="h-12 w-12 items-center justify-center rounded-full bg-brand-cyanSoft">
-        <Text className="text-lg font-extrabold text-brand-cyanDeep">
-          {firstName ? firstName.charAt(0).toUpperCase() : '?'}
-        </Text>
-      </View>
+      {photoUrl ? (
+        <Image
+          source={{ uri: photoUrl }}
+          className="h-12 w-12 rounded-full bg-brand-cyanSoft"
+          resizeMode="cover"
+        />
+      ) : (
+        <View className="h-12 w-12 items-center justify-center rounded-full bg-brand-cyanSoft">
+          <Text className="text-lg font-extrabold text-brand-cyanDeep">
+            {firstName ? firstName.charAt(0).toUpperCase() : '?'}
+          </Text>
+        </View>
+      )}
       <View className="flex-1">
         <Text className="text-[13px] font-semibold text-slate-400">{greeting()},</Text>
         <Text className="text-xl font-extrabold text-brand-ink" numberOfLines={1}>
