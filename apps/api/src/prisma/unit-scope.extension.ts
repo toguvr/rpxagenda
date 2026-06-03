@@ -23,6 +23,9 @@ export const UNIT_SCOPED_MODELS = new Set<string>([
   'MedicalRecord',
   'Payment',
   'Expense',
+  'IdfaceDevice',
+  'IdfaceEnrollment',
+  'IdfaceCommand',
 ]);
 
 const READ_OPERATIONS = new Set([

@@ -55,4 +55,14 @@ export class S3StorageProvider implements IStorageProvider {
       expiresIn: expiresInSec,
     });
   }
+
+  async downloadBytes(key: string): Promise<Buffer> {
+    const Bucket = this.requireBucket();
+    const result = await this.client.send(new GetObjectCommand({ Bucket, Key: key }));
+    if (!result.Body) {
+      throw new ResourceConflictException(`Objeto S3 "${key}" vazio.`);
+    }
+    // S3 SDK v3: Body é um ReadableStream Node.
+    return Buffer.from(await result.Body.transformToByteArray());
+  }
 }

@@ -5,6 +5,7 @@ import type { IdfaceWebhookPayload, IdfaceWebhookResponse } from '@rpx/shared';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CLS_KEYS } from '../../../common/cls/cls-keys';
 import { AppointmentsService } from '../../appointments/appointments.service';
+import { IdfaceDevicesService } from './idface-devices.service';
 import { pickEligibleAppointment } from './match-appointment';
 
 @Injectable()
@@ -15,6 +16,7 @@ export class IdfaceService {
     private readonly prisma: PrismaService,
     private readonly cls: ClsService,
     private readonly appointments: AppointmentsService,
+    private readonly devices: IdfaceDevicesService,
   ) {}
 
   /**
@@ -43,17 +45,13 @@ export class IdfaceService {
       return this.buildResponse(existing.outcome, existing.accessGranted, existing.appointmentId);
     }
 
-    // 2. Localiza o paciente pelo idfaceUserId (lookup global; Patient.idfaceUserId é unique).
-    const patient = await this.prisma.patient.findUnique({
-      where: { idfaceUserId: payload.idfaceUserId },
-      select: { id: true, unitId: true },
-    });
-
-    if (!patient) {
-      // Sem paciente, gravamos o evento contra a primeira Unit para diagnose.
-      // PREMISSA: admin investiga via dashboard de eventos negados.
+    // 2. Resolve a unidade pelo device (multi-tenant: cada totem pertence a uma unidade).
+    const device = await this.devices.findByDeviceId(payload.deviceId);
+    if (!device || !device.active) {
+      // Device desconhecido — registramos contra a primeira Unit só para diagnose.
       const anyUnit = await this.prisma.unit.findFirst({ select: { id: true } });
       if (!anyUnit) throw new Error('Sem Unit cadastrada — não é possível gravar evento.');
+      this.logger.warn({ deviceId: payload.deviceId }, 'Device iDFace não registrado ou inativo.');
       await this.saveEvent({
         unitId: anyUnit.id,
         payload,
@@ -65,7 +63,28 @@ export class IdfaceService {
       return this.buildResponse('PATIENT_NOT_FOUND', false, null);
     }
 
-    // 3. No contexto da unidade do paciente, busca candidatos elegíveis.
+    // 3. Localiza o paciente pelo idfaceUserId DENTRO da unidade do device.
+    const idfaceUserIdInt = Number.parseInt(payload.idfaceUserId, 10);
+    const patient = Number.isFinite(idfaceUserIdInt)
+      ? await this.prisma.patient.findFirst({
+          where: { unitId: device.unitId, idfaceUserId: idfaceUserIdInt },
+          select: { id: true, unitId: true },
+        })
+      : null;
+
+    if (!patient) {
+      await this.saveEvent({
+        unitId: device.unitId,
+        payload,
+        accessGranted: false,
+        outcome: 'PATIENT_NOT_FOUND',
+        patientId: null,
+        appointmentId: null,
+      });
+      return this.buildResponse('PATIENT_NOT_FOUND', false, null);
+    }
+
+    // 4. No contexto da unidade do paciente, busca candidatos elegíveis.
     return this.cls.run(async () => {
       this.cls.set(CLS_KEYS.UNIT_ID, patient.unitId);
       const candidates = await this.prisma.scoped.appointment.findMany({

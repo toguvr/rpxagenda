@@ -35,3 +35,51 @@ export const idfaceWebhookResponseSchema = z.object({
   message: z.string(),
 });
 export type IdfaceWebhookResponse = z.infer<typeof idfaceWebhookResponseSchema>;
+
+// ---------- iDFace Device (CRUD admin) ----------
+
+export const createIdfaceDeviceRequestSchema = z.object({
+  deviceId: z.string().trim().min(1, 'deviceId obrigatório').max(64, 'deviceId muito longo'),
+  name: z.string().trim().min(2, 'Nome muito curto').max(80, 'Nome muito longo'),
+  active: z.boolean().default(true),
+});
+export type CreateIdfaceDeviceRequest = z.infer<typeof createIdfaceDeviceRequestSchema>;
+
+export const updateIdfaceDeviceRequestSchema = createIdfaceDeviceRequestSchema.partial();
+export type UpdateIdfaceDeviceRequest = z.infer<typeof updateIdfaceDeviceRequestSchema>;
+
+export const idfaceDeviceResponseSchema = z.object({
+  id: cuidSchema,
+  unitId: cuidSchema,
+  deviceId: z.string(),
+  name: z.string(),
+  active: z.boolean(),
+  lastSeenAt: z.coerce.date().nullable(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+export type IdfaceDeviceResponse = z.infer<typeof idfaceDeviceResponseSchema>;
+
+// ---------- iDFace Enrollment (acompanhamento do ciclo) ----------
+
+export const IdfaceEnrollmentStatus = {
+  PENDING: 'PENDING',
+  REGISTERED: 'REGISTERED',
+  FAILED: 'FAILED',
+} as const;
+export type IdfaceEnrollmentStatus =
+  (typeof IdfaceEnrollmentStatus)[keyof typeof IdfaceEnrollmentStatus];
+
+export const idfaceEnrollmentResponseSchema = z.object({
+  id: cuidSchema,
+  unitId: cuidSchema,
+  patientId: cuidSchema,
+  assignedUserId: z.number().int(),
+  status: z.nativeEnum(IdfaceEnrollmentStatus),
+  registeredAt: z.coerce.date().nullable(),
+  failedAt: z.coerce.date().nullable(),
+  lastError: z.string().nullable(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+export type IdfaceEnrollmentResponse = z.infer<typeof idfaceEnrollmentResponseSchema>;

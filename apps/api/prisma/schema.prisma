@@ -61,6 +61,25 @@ enum IdfaceEventOutcome {
   ALREADY_CHECKED_IN
 }
 
+enum IdfaceEnrollmentStatus {
+  PENDING
+  REGISTERED
+  FAILED
+}
+
+enum IdfaceCommandStep {
+  DESTROY
+  CREATE_USER
+  SET_IMAGE
+}
+
+enum IdfaceCommandStatus {
+  PENDING
+  DISPATCHED
+  DONE
+  FAILED
+}
+
 enum PaymentMethod {
   PIX
   CREDIT_CARD
@@ -93,6 +112,9 @@ model Unit {
   id        String   @id @default(cuid())
   name      String
   timezone  String   @default("America/Sao_Paulo")
+  /// Próximo `user_id` (int64) a ser gerado para enrollment no iDFace desta unidade.
+  /// Atualizado atomicamente em UPDATE ... RETURNING ao criar uma enrollment.
+  nextIdfaceUserId Int @default(1000)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -106,6 +128,9 @@ model Unit {
   plans              Plan[]
   appointments       Appointment[]
   idfaceEvents       IdfaceEvent[]
+  idfaceDevices      IdfaceDevice[]
+  idfaceEnrollments  IdfaceEnrollment[]
+  idfaceCommands     IdfaceCommand[]
   protocols          Protocol[]
   medicalRecords     MedicalRecord[]
   payments           Payment[]
@@ -305,21 +330,26 @@ model Patient {
   adminReference    String?
   // Chave (object key) da foto do paciente no bucket S3. URL é assinada sob demanda.
   photoKey          String?
-  idfaceUserId      String?  @unique
+  /// ID interno do paciente no equipamento iDFace (gerado por nós ao enrolar).
+  /// Único por unidade — cada totem tem sua própria numeração.
+  idfaceUserId      Int?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  unit           Unit            @relation(fields: [unitId], references: [id])
-  user           User?           @relation(fields: [userId], references: [id])
-  invites        PatientInvite[]
-  plans          Plan[]
-  appointments   Appointment[]
-  idfaceEvents   IdfaceEvent[]
-  protocols      Protocol[]
-  medicalRecords MedicalRecord[]
-  payments       Payment[]
+  unit              Unit                @relation(fields: [unitId], references: [id])
+  user              User?               @relation(fields: [userId], references: [id])
+  invites           PatientInvite[]
+  plans             Plan[]
+  appointments      Appointment[]
+  idfaceEvents      IdfaceEvent[]
+  idfaceEnrollments IdfaceEnrollment[]
+  idfaceCommands    IdfaceCommand[]
+  protocols         Protocol[]
+  medicalRecords    MedicalRecord[]
+  payments          Payment[]
 
   @@unique([unitId, cpf])
+  @@unique([unitId, idfaceUserId])
   @@index([unitId, fullName])
   @@map("patients")
 }
@@ -517,6 +547,85 @@ model IdfaceEvent {
   @@index([unitId, eventAt])
   @@index([patientId])
   @@map("idface_events")
+}
+
+/// Equipamento iDFace registrado por uma unidade. O `deviceId` é a string que o
+/// próprio equipamento envia no Push (configurada na tela do iDFace). Resolve o
+/// vínculo deviceId → unidade tanto no Push (fila de comandos) quanto no Access
+/// Event (catraca), evitando que um totem libere paciente de outra unidade.
+model IdfaceDevice {
+  id         String    @id @default(cuid())
+  unitId     String
+  deviceId   String    @unique
+  name       String
+  active     Boolean   @default(true)
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id])
+
+  @@index([unitId, active])
+  @@map("idface_devices")
+}
+
+/// Ciclo de cadastro de um paciente no iDFace. Criado quando o admin salva a
+/// foto; vai a REGISTERED quando o device confirma o último comando da fila.
+model IdfaceEnrollment {
+  id             String                 @id @default(cuid())
+  unitId         String
+  patientId      String
+  /// Snapshot da photoKey no instante do enrollment (para auditoria / re-enroll).
+  photoKey       String
+  /// `user_id` (int64) que mandamos no iDFace. Único por unidade.
+  assignedUserId Int
+  status         IdfaceEnrollmentStatus @default(PENDING)
+  registeredAt   DateTime?
+  failedAt       DateTime?
+  lastError      String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  unit     Unit            @relation(fields: [unitId], references: [id])
+  patient  Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  commands IdfaceCommand[]
+
+  @@index([unitId, status])
+  @@index([patientId])
+  @@map("idface_enrollments")
+}
+
+/// Comando enfileirado para o device executar via Push (GET /push → POST /result).
+/// Cada `IdfaceEnrollment` gera 2 ou 3 comandos (DESTROY → CREATE_USER → SET_IMAGE).
+/// FIFO por unidade. `uuid` é a chave de correlação com o que o device devolve.
+model IdfaceCommand {
+  id            String              @id @default(cuid())
+  unitId        String
+  enrollmentId  String
+  patientId     String
+  step          IdfaceCommandStep
+  /// Snapshot do comando como o device receberá (verb, endpoint, body, contentType).
+  /// Inclui imagem em base64 no caso de SET_IMAGE.
+  payload       Json
+  /// UUID que volta no POST /result para correlacionar com este comando.
+  uuid          String              @unique
+  status        IdfaceCommandStatus @default(PENDING)
+  deviceId      String?
+  dispatchedAt  DateTime?
+  completedAt   DateTime?
+  response      Json?
+  error         String?
+  attempts      Int                 @default(0)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  unit       Unit             @relation(fields: [unitId], references: [id])
+  enrollment IdfaceEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  patient    Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([unitId, status, createdAt])
+  @@index([enrollmentId])
+  @@map("idface_commands")
 }
 
 // ----- Prontuário & Protocolo -----

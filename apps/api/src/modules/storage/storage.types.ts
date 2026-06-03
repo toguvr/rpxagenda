@@ -11,4 +11,6 @@ export interface IStorageProvider {
   presignUpload(key: string, contentType: string, expiresInSec?: number): Promise<string>;
   /** URL assinada para leitura (GET). */
   presignDownload(key: string, expiresInSec?: number): Promise<string>;
+  /** Baixa o objeto e devolve os bytes (usado para encaminhar imagem ao iDFace). */
+  downloadBytes(key: string): Promise<Buffer>;
 }

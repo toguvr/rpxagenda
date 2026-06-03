@@ -17,6 +17,7 @@ import { CLS_KEYS } from '../../common/cls/cls-keys';
 import { TypedConfigService } from '../../config/typed-config.service';
 import { STORAGE_PROVIDER, type IStorageProvider } from '../storage/storage.types';
 import { EMAIL_PROVIDER, type IEmailProvider } from '../email/email.types';
+import { IdfaceEnrollmentsService } from '../integrations/idface/idface-enrollments.service';
 import {
   InviteInvalidException,
   ResourceConflictException,
@@ -36,6 +37,7 @@ export class PatientsService {
     private readonly config: TypedConfigService,
     private readonly auth: AuthService,
     private readonly cls: ClsService,
+    private readonly idfaceEnrollments: IdfaceEnrollmentsService,
     @Inject(STORAGE_PROVIDER) private readonly storage: IStorageProvider,
     @Inject(EMAIL_PROVIDER) private readonly email: IEmailProvider,
   ) {}
@@ -51,13 +53,25 @@ export class PatientsService {
     return { key, uploadUrl };
   }
 
-  /** Confirma a foto após o upload: valida a key e persiste em photoKey. */
+  /**
+   * Confirma a foto após o upload: valida a key, persiste em `photoKey` e
+   * dispara o ciclo de cadastro no iDFace (best-effort: falha de enrollment
+   * não desfaz o save da foto).
+   */
   async savePhoto(id: string, key: string): Promise<PatientResponse> {
     await this.findById(id);
     if (!key.startsWith(`patients/${id}/`)) {
       throw new ResourceConflictException('A key informada não pertence a este paciente.');
     }
     const row = await this.prisma.scoped.patient.update({ where: { id }, data: { photoKey: key } });
+    try {
+      await this.idfaceEnrollments.enqueueEnrollment(id);
+    } catch (err) {
+      this.logger.warn(
+        { patientId: id, err: err instanceof Error ? err.message : String(err) },
+        'Falha ao enfileirar enrollment iDFace (foto foi salva mesmo assim).',
+      );
+    }
     return this.toResponse(row);
   }
 

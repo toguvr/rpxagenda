@@ -17,6 +17,7 @@ const NAV = [
   { href: '/schedules', label: 'Horários' },
   { href: '/equipments', label: 'Equipamentos' },
   { href: '/professionals', label: 'Profissionais' },
+  { href: '/idface-devices', label: 'iDFace', adminOnly: true },
 ] as const;
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
