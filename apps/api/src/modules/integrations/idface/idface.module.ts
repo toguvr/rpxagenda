@@ -7,10 +7,16 @@ import { IdfaceDevicesController } from './idface-devices.controller';
 import { IdfaceDevicesService } from './idface-devices.service';
 import { IdfaceEnrollmentsService } from './idface-enrollments.service';
 import { IdfacePushController } from './idface-push.controller';
+import { IdfacePushRootController } from './idface-push-root.controller';
 
 @Module({
   imports: [AppointmentsModule],
-  controllers: [IdfaceController, IdfaceDevicesController, IdfacePushController],
+  controllers: [
+    IdfaceController,
+    IdfaceDevicesController,
+    IdfacePushController,
+    IdfacePushRootController,
+  ],
   providers: [IdfaceService, IdfaceWebhookGuard, IdfaceDevicesService, IdfaceEnrollmentsService],
   exports: [IdfaceService, IdfaceEnrollmentsService],
 })
