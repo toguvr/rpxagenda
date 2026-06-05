@@ -1,16 +1,6 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import { ApiExcludeEndpoint } from '@nestjs/swagger';
 import { Public } from '../../auth/decorators/public.decorator';
-import { IdfaceWebhookGuard } from './idface-webhook.guard';
 import { IdfacePushController } from './idface-push.controller';
 
 /**
@@ -24,20 +14,21 @@ export class IdfacePushRootController {
   constructor(private readonly push: IdfacePushController) {}
 
   @Public()
-  @UseGuards(IdfaceWebhookGuard)
   @Get('push')
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
-  pushAlias(@Query('deviceId') deviceId: string): Promise<unknown> {
-    return this.push.push(deviceId);
+  pushAlias(@Query('deviceId') deviceId: string, @Query('uuid') uuid: string): Promise<unknown> {
+    return this.push.push(deviceId, uuid);
   }
 
   @Public()
-  @UseGuards(IdfaceWebhookGuard)
   @Post('result')
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
-  resultAlias(@Body() body: Parameters<IdfacePushController['result']>[0]): Promise<{ ok: true }> {
-    return this.push.result(body);
+  resultAlias(
+    @Body() body: Parameters<IdfacePushController['result']>[0],
+    @Query('deviceId') deviceId?: string,
+  ): Promise<{ ok: true }> {
+    return this.push.result(body, deviceId);
   }
 }

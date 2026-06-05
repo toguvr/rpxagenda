@@ -101,10 +101,8 @@ export class IdfaceEnrollmentsService {
   async popNextCommand(
     unitId: string,
     deviceId: string,
-  ): Promise<{
-    uuid: string;
-    payload: CommandPayload;
-  } | null> {
+    dispatchUuid: string,
+  ): Promise<CommandPayload | null> {
     return this.prisma.$transaction(async (tx) => {
       const cmd = await tx.idfaceCommand.findFirst({
         where: { unitId, status: 'PENDING' },
@@ -116,11 +114,13 @@ export class IdfaceEnrollmentsService {
         data: {
           status: 'DISPATCHED',
           deviceId,
+          // uuid que o device gerou neste GET /push — é o que volta no /result.
+          dispatchUuid,
           dispatchedAt: new Date(),
           attempts: { increment: 1 },
         },
       });
-      return { uuid: cmd.uuid, payload: cmd.payload as unknown as CommandPayload };
+      return cmd.payload as unknown as CommandPayload;
     });
   }
 
@@ -131,7 +131,12 @@ export class IdfaceEnrollmentsService {
    * conforme a sequência DESTROY → CREATE_USER → SET_IMAGE.
    */
   async recordResult(input: { uuid: string; response?: unknown; error?: string }): Promise<void> {
-    const cmd = await this.prisma.idfaceCommand.findUnique({ where: { uuid: input.uuid } });
+    // O protocolo Push correlaciona pelo uuid que o DEVICE gerou no /push
+    // (gravado em dispatchUuid), não pelo uuid interno do comando.
+    const cmd = await this.prisma.idfaceCommand.findFirst({
+      where: { dispatchUuid: input.uuid },
+      orderBy: { dispatchedAt: 'desc' },
+    });
     if (!cmd) {
       this.logger.warn({ uuid: input.uuid }, 'Result recebido para uuid desconhecido — ignorando.');
       return;
@@ -293,6 +298,9 @@ export class IdfaceEnrollmentsService {
           verb: 'POST',
           endpoint: 'user_set_image_list.fcgi',
           body: {
+            // match=0: não rejeitar por face já cadastrada — recomendado pela
+            // ControliD para cadastro, evita falha em re-enroll do mesmo rosto.
+            match: 0,
             user_images: [
               {
                 user_id: userId,

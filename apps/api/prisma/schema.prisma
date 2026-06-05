@@ -607,8 +607,12 @@ model IdfaceCommand {
   /// Snapshot do comando como o device receberá (verb, endpoint, body, contentType).
   /// Inclui imagem em base64 no caso de SET_IMAGE.
   payload       Json
-  /// UUID que volta no POST /result para correlacionar com este comando.
+  /// UUID interno do comando (gerado pelo backend na criação).
   uuid          String              @unique
+  /// UUID que o PRÓPRIO device gera no GET /push?uuid=... e devolve no
+  /// POST /result. É a chave de correlação real do protocolo Push da ControliD
+  /// (o device ignora qualquer uuid que o servidor mande no corpo da resposta).
+  dispatchUuid  String?
   status        IdfaceCommandStatus @default(PENDING)
   deviceId      String?
   dispatchedAt  DateTime?
@@ -625,6 +629,7 @@ model IdfaceCommand {
 
   @@index([unitId, status, createdAt])
   @@index([enrollmentId])
+  @@index([dispatchUuid])
   @@map("idface_commands")
 }
 
