@@ -17,7 +17,15 @@ import { IdfacePushRootController } from './idface-push-root.controller';
     IdfacePushController,
     IdfacePushRootController,
   ],
-  providers: [IdfaceService, IdfaceWebhookGuard, IdfaceDevicesService, IdfaceEnrollmentsService],
+  providers: [
+    IdfaceService,
+    IdfaceWebhookGuard,
+    IdfaceDevicesService,
+    IdfaceEnrollmentsService,
+    // Também provider (além de controller) para poder ser injetado no
+    // IdfacePushRootController, que apenas delega os aliases de raiz /push e /result.
+    IdfacePushController,
+  ],
   exports: [IdfaceService, IdfaceEnrollmentsService],
 })
 export class IdfaceModule {}
