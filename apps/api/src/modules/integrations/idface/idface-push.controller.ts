@@ -48,8 +48,15 @@ export class IdfacePushController {
     }
     await this.devices.touchLastSeen(device.id);
     // Sem uuid não há como correlacionar o /result — devolve fila vazia.
-    if (!uuid) return {};
+    if (!uuid) {
+      this.logger.warn({ deviceId }, 'Push poll SEM uuid — device não envia ?uuid=, fila vazia.');
+      return {};
+    }
     const payload = await this.enrollments.popNextCommand(device.unitId, deviceId, uuid);
+    this.logger.log(
+      { deviceId, uuid, dispatched: payload ? payload.endpoint : null },
+      payload ? 'Push poll — comando entregue.' : 'Push poll — fila vazia.',
+    );
     // O device espera o comando diretamente: { verb, endpoint, body, contentType }.
     return payload ?? {};
   }

@@ -6,7 +6,14 @@ export function buildLoggerOptions(env: Pick<Env, 'NODE_ENV' | 'LOG_LEVEL'>): Pa
   return {
     pinoHttp: {
       level: env.LOG_LEVEL,
-      autoLogging: true,
+      // Ignora o healthcheck do load balancer (GET / pelo ELB-HealthChecker),
+      // que a cada 10s afoga o log e impede ver o tráfego real (ex: polls /push).
+      autoLogging: {
+        ignore: (req) => {
+          const ua = (req.headers?.['user-agent'] as string | undefined) ?? '';
+          return req.url === '/' || ua.startsWith('ELB-HealthChecker');
+        },
+      },
       redact: {
         paths: [
           'req.headers.authorization',
