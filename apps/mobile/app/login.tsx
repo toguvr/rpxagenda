@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ApiError, login } from '@/lib/api';
 import { saveSession } from '@/lib/auth';
 
-const welcome = require('../assets/welcome.png');
+const welcome = require('../assets/welcome-hero.png');
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
