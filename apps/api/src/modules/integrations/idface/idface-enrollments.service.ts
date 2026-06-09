@@ -147,6 +147,10 @@ export class IdfaceEnrollmentsService {
     }
 
     const ok = !input.error;
+    this.logger.log(
+      { uuid: input.uuid, step: cmd.step, ok, error: input.error ?? null },
+      `Result recebido — ${cmd.step} ${ok ? 'OK' : 'FALHOU'}.`,
+    );
     await this.prisma.idfaceCommand.update({
       where: { id: cmd.id },
       data: {
@@ -278,14 +282,16 @@ export class IdfaceEnrollmentsService {
       case 'DESTROY':
         return {
           verb: 'POST',
-          endpoint: 'destroy_objects.fcgi',
+          // No modo Push o endpoint é o NOME PURO do comando (sem .fcgi e sem
+          // barra) — o device mapeia internamente para /destroy_objects.fcgi.
+          endpoint: 'destroy_objects',
           body: { object: 'users', where: { users: { id: userId } } },
           contentType: 'application/json',
         };
       case 'CREATE_USER':
         return {
           verb: 'POST',
-          endpoint: 'create_objects.fcgi',
+          endpoint: 'create_objects',
           body: {
             object: 'users',
             values: [{ id: userId, name: patient.fullName, registration: patient.cpf }],
@@ -296,7 +302,7 @@ export class IdfaceEnrollmentsService {
         const bytes = await this.storage.downloadBytes(photoKey);
         return {
           verb: 'POST',
-          endpoint: 'user_set_image_list.fcgi',
+          endpoint: 'user_set_image_list',
           body: {
             // match=0: não rejeitar por face já cadastrada — recomendado pela
             // ControliD para cadastro, evita falha em re-enroll do mesmo rosto.
