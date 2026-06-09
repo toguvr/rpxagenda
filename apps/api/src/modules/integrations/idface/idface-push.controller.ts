@@ -4,7 +4,17 @@ import { Public } from '../../auth/decorators/public.decorator';
 import { IdfaceDevicesService } from './idface-devices.service';
 import { IdfaceEnrollmentsService } from './idface-enrollments.service';
 
+interface TransactionResult {
+  transactionid?: string | number;
+  success?: boolean;
+  response?: unknown;
+  error?: string;
+}
+
 interface ResultBody {
+  // Forma do protocolo Push: resultados em lote por transactionid.
+  transactions_results?: TransactionResult[];
+  // Forma single legada (alguns firmwares): uuid + response/error.
   uuid?: string;
   endpoint?: string;
   response?: unknown;
@@ -47,24 +57,22 @@ export class IdfacePushController {
       return {};
     }
     await this.devices.touchLastSeen(device.id);
-    // Sem uuid não há como correlacionar o /result — devolve fila vazia.
-    if (!uuid) {
-      this.logger.warn({ deviceId }, 'Push poll SEM uuid — device não envia ?uuid=, fila vazia.');
-      return {};
-    }
-    const payload = await this.enrollments.popNextCommand(device.unitId, deviceId, uuid);
-    if (payload) {
-      this.logger.log(
-        { deviceId, uuid, endpoint: payload.endpoint },
-        'Push poll — comando entregue.',
-      );
-    } else {
+    const cmd = await this.enrollments.popNextCommand(device.unitId, deviceId);
+    if (!cmd) {
       // Polls vazios são a maioria (device pergunta a cada poucos seg) — debug
       // para não afogar o log de eventos reais (comando entregue / result).
       this.logger.debug({ deviceId, uuid }, 'Push poll — fila vazia.');
+      return {};
     }
-    // O device espera o comando diretamente: { verb, endpoint, body, contentType }.
-    return payload ?? {};
+    this.logger.log(
+      { deviceId, transactionid: cmd.transactionid, endpoint: cmd.payload.endpoint },
+      'Push poll — comando entregue.',
+    );
+    // Formato esperado pelo firmware: array `transactions`, cada item com um
+    // `transactionid` que o device devolve em `transactions_results` no /result.
+    return {
+      transactions: [{ transactionid: cmd.transactionid, ...cmd.payload }],
+    };
   }
 
   @Public()
@@ -84,16 +92,29 @@ export class IdfacePushController {
         return { ok: true };
       }
     }
-    const uuid = body?.uuid;
-    if (!uuid) {
-      this.logger.warn({ body }, 'Result sem uuid — ignorando.');
+    // Forma em lote (protocolo Push): transactions_results[].
+    if (Array.isArray(body?.transactions_results) && body.transactions_results.length > 0) {
+      for (const tr of body.transactions_results) {
+        if (tr?.transactionid === undefined || tr?.transactionid === null) continue;
+        await this.enrollments.recordResult({
+          transactionid: String(tr.transactionid),
+          success: tr.success,
+          response: tr.response,
+          error: tr.error,
+        });
+      }
       return { ok: true };
     }
-    await this.enrollments.recordResult({
-      uuid,
-      response: body.response,
-      error: body.error,
-    });
+    // Forma single legada: uuid (tratado como transactionid).
+    if (body?.uuid) {
+      await this.enrollments.recordResult({
+        transactionid: body.uuid,
+        response: body.response,
+        error: body.error,
+      });
+      return { ok: true };
+    }
+    this.logger.warn({ body }, 'Result sem transactions_results nem uuid — ignorando.');
     return { ok: true };
   }
 }

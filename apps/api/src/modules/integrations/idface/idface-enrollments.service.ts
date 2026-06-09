@@ -101,26 +101,29 @@ export class IdfaceEnrollmentsService {
   async popNextCommand(
     unitId: string,
     deviceId: string,
-    dispatchUuid: string,
-  ): Promise<CommandPayload | null> {
+  ): Promise<{ transactionid: string; payload: CommandPayload } | null> {
     return this.prisma.$transaction(async (tx) => {
       const cmd = await tx.idfaceCommand.findFirst({
         where: { unitId, status: 'PENDING' },
         orderBy: { createdAt: 'asc' },
       });
       if (!cmd) return null;
+      // O protocolo Push correlaciona o resultado pelo `transactionid` que o
+      // servidor envia no array `transactions` — o device o devolve em
+      // `transactions_results`. Geramos um inteiro único e o guardamos em
+      // dispatchUuid para casar o /result de volta.
+      const transactionid = String(crypto.randomInt(1, 2 ** 31 - 1));
       await tx.idfaceCommand.update({
         where: { id: cmd.id },
         data: {
           status: 'DISPATCHED',
           deviceId,
-          // uuid que o device gerou neste GET /push — é o que volta no /result.
-          dispatchUuid,
+          dispatchUuid: transactionid,
           dispatchedAt: new Date(),
           attempts: { increment: 1 },
         },
       });
-      return cmd.payload as unknown as CommandPayload;
+      return { transactionid, payload: cmd.payload as unknown as CommandPayload };
     });
   }
 
@@ -130,25 +133,37 @@ export class IdfaceEnrollmentsService {
    * Marca o comando como concluído/falho e enfileira o próximo passo
    * conforme a sequência DESTROY → CREATE_USER → SET_IMAGE.
    */
-  async recordResult(input: { uuid: string; response?: unknown; error?: string }): Promise<void> {
-    // O protocolo Push correlaciona pelo uuid que o DEVICE gerou no /push
-    // (gravado em dispatchUuid), não pelo uuid interno do comando.
+  async recordResult(input: {
+    transactionid: string;
+    success?: boolean;
+    response?: unknown;
+    error?: string;
+  }): Promise<void> {
+    // Correlação pelo `transactionid` que enviamos no array `transactions` e
+    // que o device devolve em `transactions_results` (gravado em dispatchUuid).
     const cmd = await this.prisma.idfaceCommand.findFirst({
-      where: { dispatchUuid: input.uuid },
+      where: { dispatchUuid: input.transactionid },
       orderBy: { dispatchedAt: 'desc' },
     });
     if (!cmd) {
-      this.logger.warn({ uuid: input.uuid }, 'Result recebido para uuid desconhecido — ignorando.');
+      this.logger.warn(
+        { transactionid: input.transactionid },
+        'Result recebido para transactionid desconhecido — ignorando.',
+      );
       return;
     }
     if (cmd.status === 'DONE' || cmd.status === 'FAILED') {
-      this.logger.log({ uuid: input.uuid }, 'Result idempotente — comando já finalizado.');
+      this.logger.log(
+        { transactionid: input.transactionid },
+        'Result idempotente — comando já finalizado.',
+      );
       return;
     }
 
-    const ok = !input.error;
+    // success quando o device sinaliza success !== false e não há error.
+    const ok = input.success !== false && !input.error;
     this.logger.log(
-      { uuid: input.uuid, step: cmd.step, ok, error: input.error ?? null },
+      { transactionid: input.transactionid, step: cmd.step, ok, error: input.error ?? null },
       `Result recebido — ${cmd.step} ${ok ? 'OK' : 'FALHOU'}.`,
     );
     await this.prisma.idfaceCommand.update({
