@@ -11,7 +11,14 @@ export function buildLoggerOptions(env: Pick<Env, 'NODE_ENV' | 'LOG_LEVEL'>): Pa
       autoLogging: {
         ignore: (req) => {
           const ua = (req.headers?.['user-agent'] as string | undefined) ?? '';
-          return req.url === '/' || ua.startsWith('ELB-HealthChecker');
+          if (req.url === '/' || ua.startsWith('ELB-HealthChecker')) return true;
+          // Polls GET /push do iDFace são a cada poucos seg e afogam o log; o
+          // poll relevante (comando entregue) é logado manualmente no controller.
+          const url = req.url ?? '';
+          return (
+            req.method === 'GET' &&
+            (url.startsWith('/push') || url.startsWith('/webhooks/idface/push'))
+          );
         },
       },
       redact: {

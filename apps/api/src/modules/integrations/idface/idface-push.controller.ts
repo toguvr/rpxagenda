@@ -53,10 +53,16 @@ export class IdfacePushController {
       return {};
     }
     const payload = await this.enrollments.popNextCommand(device.unitId, deviceId, uuid);
-    this.logger.log(
-      { deviceId, uuid, dispatched: payload ? payload.endpoint : null },
-      payload ? 'Push poll — comando entregue.' : 'Push poll — fila vazia.',
-    );
+    if (payload) {
+      this.logger.log(
+        { deviceId, uuid, endpoint: payload.endpoint },
+        'Push poll — comando entregue.',
+      );
+    } else {
+      // Polls vazios são a maioria (device pergunta a cada poucos seg) — debug
+      // para não afogar o log de eventos reais (comando entregue / result).
+      this.logger.debug({ deviceId, uuid }, 'Push poll — fila vazia.');
+    }
     // O device espera o comando diretamente: { verb, endpoint, body, contentType }.
     return payload ?? {};
   }
