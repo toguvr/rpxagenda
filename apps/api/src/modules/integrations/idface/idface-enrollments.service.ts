@@ -170,9 +170,9 @@ export class IdfaceEnrollmentsService {
       where: { id: cmd.id },
       data: {
         status: ok ? 'DONE' : 'FAILED',
-        response: ok
-          ? ((input.response ?? Prisma.JsonNull) as Prisma.InputJsonValue)
-          : Prisma.JsonNull,
+        // Persistimos o response do device em ambos os casos — em falha ele
+        // costuma trazer o motivo (ex: rosto não detectado no SET_IMAGE).
+        response: (input.response ?? Prisma.JsonNull) as Prisma.InputJsonValue,
         error: input.error ?? null,
         completedAt: new Date(),
       },
