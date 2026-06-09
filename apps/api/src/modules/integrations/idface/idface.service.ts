@@ -145,6 +145,62 @@ export class IdfaceService {
     });
   }
 
+  /**
+   * Modo Pro/online do iDFace: o device chama `POST /new_user_identified.fcgi`
+   * (form-urlencoded) a cada identificação e espera a resposta que abre a porta.
+   * Reaproveitamos toda a regra de check-in de `processEvent` e mapeamos para o
+   * formato `{ result: { event, actions } }` que o equipamento entende:
+   *   event 7 = liberar (+ action door), event 6 = negar.
+   */
+  async processOnlineIdentification(input: {
+    deviceId: string;
+    userId: string;
+    timeUnix?: number;
+    portalId: number;
+  }): Promise<{
+    result: {
+      event: number;
+      user_id: number;
+      user_name: string;
+      user_image: boolean;
+      portal_id: number;
+      actions?: { action: string; parameters: string }[];
+    };
+  }> {
+    const timestamp = input.timeUnix ? new Date(input.timeUnix * 1000) : new Date();
+    const res = await this.processEvent({
+      deviceId: input.deviceId,
+      idfaceUserId: input.userId,
+      timestamp,
+    });
+
+    // Nome para exibir no totem (best-effort, só quando libera).
+    let userName = '';
+    if (res.accessGranted) {
+      const device = await this.devices.findByDeviceId(input.deviceId);
+      const uid = Number.parseInt(input.userId, 10);
+      if (device && Number.isFinite(uid)) {
+        const patient = await this.prisma.patient.findFirst({
+          where: { unitId: device.unitId, idfaceUserId: uid },
+          select: { fullName: true },
+        });
+        userName = patient?.fullName ?? '';
+      }
+    }
+
+    const userIdNum = Number.parseInt(input.userId, 10);
+    return {
+      result: {
+        event: res.accessGranted ? 7 : 6,
+        user_id: Number.isFinite(userIdNum) ? userIdNum : 0,
+        user_name: userName,
+        user_image: false,
+        portal_id: input.portalId,
+        ...(res.accessGranted ? { actions: [{ action: 'door', parameters: 'door=1' }] } : {}),
+      },
+    };
+  }
+
   // -------- helpers --------
 
   private async saveEvent(input: {

@@ -1,6 +1,7 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Logger, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBody,
+  ApiExcludeEndpoint,
   ApiHeader,
   ApiOkResponse,
   ApiOperation,
@@ -17,10 +18,45 @@ import { ZodValidationPipe } from '../../auth/pipes/zod-validation.pipe';
 import { IdfaceWebhookGuard } from './idface-webhook.guard';
 import { IdfaceService } from './idface.service';
 
+interface OnlineIdentificationBody {
+  device_id?: string;
+  user_id?: string;
+  time?: string;
+  portal_id?: string;
+  uuid?: string;
+  event?: string;
+}
+
 @ApiTags('integrations/idface')
 @Controller('webhooks/idface')
 export class IdfaceController {
+  private readonly logger = new Logger(IdfaceController.name);
+
   constructor(private readonly idface: IdfaceService) {}
+
+  /**
+   * Modo Pro/online do iDFace. O equipamento chama este endpoint (form-urlencoded)
+   * a cada identificação e usa a resposta `{ result: { event, actions } }` para
+   * liberar (event 7 + action door) ou negar (event 6) a entrada. Público e sem
+   * guard pelo mesmo motivo do Push: o device não envia header/segredo custom.
+   */
+  @Public()
+  @Post('new_user_identified.fcgi')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  async onlineIdentification(@Body() body: OnlineIdentificationBody): Promise<unknown> {
+    const deviceId = body?.device_id ?? '';
+    const userId = body?.user_id ?? '';
+    const portalId = Number.parseInt(body?.portal_id ?? '1', 10) || 1;
+    const timeUnix = body?.time ? Number.parseInt(body.time, 10) : undefined;
+    this.logger.log({ deviceId, userId, portalId }, 'iDFace online identification recebida.');
+    return this.idface.processOnlineIdentification({
+      deviceId,
+      userId,
+      timeUnix: Number.isFinite(timeUnix) ? timeUnix : undefined,
+      portalId,
+    });
+  }
 
   @Public()
   @UseGuards(IdfaceWebhookGuard)

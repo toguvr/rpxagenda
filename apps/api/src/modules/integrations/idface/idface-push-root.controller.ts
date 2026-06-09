@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestj
 import { ApiExcludeEndpoint } from '@nestjs/swagger';
 import { Public } from '../../auth/decorators/public.decorator';
 import { IdfacePushController } from './idface-push.controller';
+import { IdfaceService } from './idface.service';
 
 /**
  * Aliases dos endpoints de Push no caminho raiz `/push` e `/result`. O
@@ -11,7 +12,10 @@ import { IdfacePushController } from './idface-push.controller';
  */
 @Controller()
 export class IdfacePushRootController {
-  constructor(private readonly push: IdfacePushController) {}
+  constructor(
+    private readonly push: IdfacePushController,
+    private readonly idface: IdfaceService,
+  ) {}
 
   @Public()
   @Get('push')
@@ -30,5 +34,29 @@ export class IdfacePushRootController {
     @Query('deviceId') deviceId?: string,
   ): Promise<{ ok: true }> {
     return this.push.result(body, deviceId);
+  }
+
+  /** Alias na raiz do `new_user_identified.fcgi` (modo Pro/online do iDFace). */
+  @Public()
+  @Post('new_user_identified.fcgi')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  onlineIdentificationAlias(
+    @Body()
+    body: {
+      device_id?: string;
+      user_id?: string;
+      time?: string;
+      portal_id?: string;
+    },
+  ): Promise<unknown> {
+    const portalId = Number.parseInt(body?.portal_id ?? '1', 10) || 1;
+    const timeUnix = body?.time ? Number.parseInt(body.time, 10) : undefined;
+    return this.idface.processOnlineIdentification({
+      deviceId: body?.device_id ?? '',
+      userId: body?.user_id ?? '',
+      timeUnix: Number.isFinite(timeUnix) ? timeUnix : undefined,
+      portalId,
+    });
   }
 }
