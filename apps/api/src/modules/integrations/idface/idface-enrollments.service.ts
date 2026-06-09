@@ -319,9 +319,10 @@ export class IdfaceEnrollmentsService {
           verb: 'POST',
           endpoint: 'user_set_image_list',
           body: {
-            // match=0: não rejeitar por face já cadastrada — recomendado pela
-            // ControliD para cadastro, evita falha em re-enroll do mesmo rosto.
-            match: 0,
+            // match=false: não rejeitar por face já cadastrada. O device exige
+            // BOOLEANO aqui (retorna "Invalid member 'match' (boolean expected,
+            // got uint64)" se enviar número).
+            match: false,
             user_images: [
               {
                 user_id: userId,
