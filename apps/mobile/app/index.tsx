@@ -10,7 +10,12 @@ export default function Index() {
   const [authed, setAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
-    getAccessToken().then((token) => setAuthed(!!token));
+    // Falha na leitura do secure-store (rejeita ou trava no Keystore/Keychain,
+    // comum em cold start) não pode deixar a tela presa no loading do logo:
+    // tratamos como "não logado" e seguimos para o login.
+    getAccessToken()
+      .then((token) => setAuthed(!!token))
+      .catch(() => setAuthed(false));
   }, []);
 
   if (authed === null) {
