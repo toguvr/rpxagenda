@@ -8,6 +8,7 @@ import { IdfaceDevicesService } from './idface-devices.service';
 import { IdfaceEnrollmentsService } from './idface-enrollments.service';
 import { IdfacePushController } from './idface-push.controller';
 import { IdfacePushRootController } from './idface-push-root.controller';
+import { IdfaceFallbackController } from './idface-fallback.controller';
 
 @Module({
   imports: [AppointmentsModule],
@@ -16,6 +17,10 @@ import { IdfacePushRootController } from './idface-push-root.controller';
     IdfaceDevicesController,
     IdfacePushController,
     IdfacePushRootController,
+    // POR ÚLTIMO: wildcard que pega qualquer .fcgi sob /webhooks/idface ainda
+    // sem handler explícito (keepalive do modo online) — não deve atropelar os
+    // handlers acima, que são registrados antes.
+    IdfaceFallbackController,
   ],
   providers: [
     IdfaceService,
