@@ -58,6 +58,42 @@ export class IdfaceController {
     });
   }
 
+  // -------- Handshake/keepalive do modo online --------
+  // O iDFace só se considera ONLINE se o servidor responder a estes endpoints.
+  // Enquanto recebem 404 o totem fica "offline" e nunca chama new_user_identified.
+
+  @Public()
+  @Post('session_is_valid.fcgi')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  sessionIsValid(): { session_is_valid: true } {
+    return { session_is_valid: true };
+  }
+
+  @Public()
+  @Post('device_is_alive.fcgi')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  deviceIsAlive(): void {
+    /* 200 vazio — keepalive do device */
+  }
+
+  @Public()
+  @Post('online.fcgi')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  online(): { online: true } {
+    return { online: true };
+  }
+
+  @Public()
+  @Post('check.fcgi')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  check(): { ok: true } {
+    return { ok: true };
+  }
+
   @Public()
   @UseGuards(IdfaceWebhookGuard)
   @Post('access-event')

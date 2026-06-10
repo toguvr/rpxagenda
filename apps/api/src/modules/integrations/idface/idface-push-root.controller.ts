@@ -59,4 +59,38 @@ export class IdfacePushRootController {
       portalId,
     });
   }
+
+  // -------- Handshake/keepalive do modo online (aliases na raiz) --------
+
+  @Public()
+  @Post('session_is_valid.fcgi')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  sessionIsValidAlias(): { session_is_valid: true } {
+    return { session_is_valid: true };
+  }
+
+  @Public()
+  @Post('device_is_alive.fcgi')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  deviceIsAliveAlias(): void {
+    /* 200 vazio */
+  }
+
+  @Public()
+  @Post('online.fcgi')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  onlineAlias(): { online: true } {
+    return { online: true };
+  }
+
+  @Public()
+  @Post('check.fcgi')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  checkAlias(): { ok: true } {
+    return { ok: true };
+  }
 }
