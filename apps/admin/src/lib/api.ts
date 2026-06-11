@@ -81,7 +81,21 @@ export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Pro
   return parsed as T;
 }
 
-async function tryRefresh(): Promise<boolean> {
+// Single-flight: 401s concorrentes (dashboard/listas carregando juntas)
+// compartilham UM único refresh. Sem isso, cada uma apresenta o MESMO refresh
+// token; a rotação revoga no 1º uso e os demais caem na detecção de reuso do
+// servidor, que revoga a sessão inteira — deslogando o usuário.
+let refreshInFlight: Promise<boolean> | null = null;
+
+function tryRefresh(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = doRefresh().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
+async function doRefresh(): Promise<boolean> {
   const refresh = getRefreshToken();
   if (!refresh) return false;
   try {

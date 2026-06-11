@@ -16,6 +16,10 @@ import type { LoginResponse } from '@rpx/shared';
 const REFRESH_TOKEN_BYTES = 48; // 384 bits
 const RESET_TOKEN_BYTES = 32;
 const RESET_TTL_MINUTES = 30;
+// Janela em que reapresentar um refresh recém-rotacionado é tratado como race
+// de concorrência (várias abas/requisições simultâneas), e não como reuso
+// malicioso. Dentro dela rejeitamos só a requisição; fora, revogamos tudo.
+const ROTATION_GRACE_MS = 60_000;
 
 @Injectable()
 export class AuthService {
@@ -55,7 +59,17 @@ export class AuthService {
       throw new RefreshTokenInvalidException();
     }
     if (record.revokedAt) {
-      // Refresh já usado/revogado → possível reuso. Revoga todos os tokens do usuário.
+      const sinceRevokedMs = Date.now() - record.revokedAt.getTime();
+      if (sinceRevokedMs <= ROTATION_GRACE_MS) {
+        // Reuso quase-simultâneo = race (abas/requisições concorrentes), não
+        // roubo. Rejeita só esta requisição, sem derrubar a sessão inteira.
+        this.logger.log(
+          { userId: record.userId, refreshTokenId: record.id, sinceRevokedMs },
+          'Refresh recém-rotacionado reapresentado dentro do grace — rejeitando sem revogar tudo',
+        );
+        throw new RefreshTokenInvalidException('Refresh token já rotacionado');
+      }
+      // Reuso tardio → possível roubo. Revoga todos os tokens do usuário.
       this.logger.warn(
         { userId: record.userId, refreshTokenId: record.id },
         'Tentativa de reuso de refresh token revogado — revogando todos os tokens do usuário',

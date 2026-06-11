@@ -8,6 +8,12 @@ import {
 } from '../../common/exceptions/app.exception';
 import type { PrismaService } from '../../prisma/prisma.service';
 import type { TypedConfigService } from '../../config/typed-config.service';
+import type { IEmailProvider } from '../email/email.types';
+
+// Email provider fake — os testes de auth não exercitam envio de e-mail.
+function createEmailFake(): IEmailProvider {
+  return { send: async () => undefined, isConfigured: () => true };
+}
 
 // ----- Fake PrismaService (in-memory) -----
 interface UserRow {
@@ -45,16 +51,15 @@ function createPrismaFake(initialUsers: UserRow[] = []) {
   };
 
   const refreshTokenApi = {
-    create: async (args: { data: Omit<RefreshTokenRow, 'id' | 'revokedAt'> & { revokedAt?: Date } }) => {
+    create: async (args: {
+      data: Omit<RefreshTokenRow, 'id' | 'revokedAt'> & { revokedAt?: Date };
+    }) => {
       const id = `rt_${++refreshSeq}`;
       const row: RefreshTokenRow = { id, revokedAt: null, ...args.data };
       refreshTokens.set(id, row);
       return row;
     },
-    findUnique: async (args: {
-      where: { tokenHash: string };
-      include?: { user?: boolean };
-    }) => {
+    findUnique: async (args: { where: { tokenHash: string }; include?: { user?: boolean } }) => {
       for (const rt of refreshTokens.values()) {
         if (rt.tokenHash === args.where.tokenHash) {
           if (args.include?.user) {
@@ -142,6 +147,7 @@ describe('AuthService', () => {
         prisma as unknown as PrismaService,
         new JwtService(),
         createConfigFake(),
+        createEmailFake(),
       );
 
       const result = await auth.login('admin@rpxexpert.local', 'Senha@1234');
@@ -163,6 +169,7 @@ describe('AuthService', () => {
         prisma as unknown as PrismaService,
         new JwtService(),
         createConfigFake(),
+        createEmailFake(),
       );
 
       await expect(auth.login('admin@rpxexpert.local', 'errada')).rejects.toBeInstanceOf(
@@ -176,6 +183,7 @@ describe('AuthService', () => {
         prisma as unknown as PrismaService,
         new JwtService(),
         createConfigFake(),
+        createEmailFake(),
       );
 
       await expect(auth.login('nope@rpxexpert.local', 'qualquer')).rejects.toBeInstanceOf(
@@ -192,6 +200,7 @@ describe('AuthService', () => {
         prisma as unknown as PrismaService,
         new JwtService(),
         createConfigFake(),
+        createEmailFake(),
       );
 
       const first = await auth.login('admin@rpxexpert.local', 'Senha@1234');
@@ -208,6 +217,7 @@ describe('AuthService', () => {
         prisma as unknown as PrismaService,
         new JwtService(),
         createConfigFake(),
+        createEmailFake(),
       );
 
       const first = await auth.login('admin@rpxexpert.local', 'Senha@1234');
@@ -225,6 +235,7 @@ describe('AuthService', () => {
         prisma as unknown as PrismaService,
         new JwtService(),
         createConfigFake(),
+        createEmailFake(),
       );
 
       await expect(auth.refresh('nao-existe-no-banco')).rejects.toBeInstanceOf(
@@ -241,6 +252,7 @@ describe('AuthService', () => {
         prisma as unknown as PrismaService,
         new JwtService(),
         createConfigFake(),
+        createEmailFake(),
       );
 
       const first = await auth.login('admin@rpxexpert.local', 'Senha@1234');
