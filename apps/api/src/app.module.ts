@@ -9,6 +9,7 @@ import { buildLoggerOptions } from './common/logger/logger.config';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './modules/health/health.module';
+import { AppVersionModule } from './modules/app-version/app-version.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UnitsModule } from './modules/units/units.module';
 import { ServicesModule } from './modules/services/services.module';
@@ -62,6 +63,7 @@ import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.int
     FinanceModule,
     DashboardModule,
     HealthModule,
+    AppVersionModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

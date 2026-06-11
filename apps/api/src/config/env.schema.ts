@@ -47,6 +47,16 @@ export const envSchema = z.object({
   SES_REGION: z.string().default('us-east-1'),
   // URL pública do admin, usada para montar o link de resgate do convite no e-mail.
   ADMIN_PUBLIC_URL: z.string().url().default('http://localhost:4000'),
+
+  // Gate de versão do app mobile (forced update). `MOBILE_MIN_VERSION` é a versão
+  // mínima suportada (semver): abaixo dela o app mostra tela de atualização
+  // obrigatória. Default 0.0.0 = nunca força. As URLs alimentam o botão "Atualizar".
+  MOBILE_MIN_VERSION: z.string().default('0.0.0'),
+  MOBILE_LATEST_VERSION: z.string().default('0.0.0'),
+  MOBILE_IOS_URL: z.string().default(''),
+  MOBILE_ANDROID_URL: z
+    .string()
+    .default('https://play.google.com/store/apps/details?id=com.rpxexpert.app'),
 });
 
 /**
