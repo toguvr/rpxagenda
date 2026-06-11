@@ -53,7 +53,7 @@ export const envSchema = z.object({
   // obrigatória. Default 0.0.0 = nunca força. As URLs alimentam o botão "Atualizar".
   MOBILE_MIN_VERSION: z.string().default('0.0.0'),
   MOBILE_LATEST_VERSION: z.string().default('0.0.0'),
-  MOBILE_IOS_URL: z.string().default(''),
+  MOBILE_IOS_URL: z.string().default('https://apps.apple.com/app/id6773563702'),
   MOBILE_ANDROID_URL: z
     .string()
     .default('https://play.google.com/store/apps/details?id=com.rpxexpert.app'),
