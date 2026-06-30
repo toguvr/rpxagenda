@@ -30,6 +30,14 @@ export interface ScreenDef {
   path: string;
   /** Telas operacionais que esta tela costuma consultar (dropdowns, etc). */
   dependsOn?: readonly ScreenKey[];
+  /**
+   * Tela cujos dados de LEITURA também são privados: só quem tem a permissão
+   * pode ler (GET) via API. Telas sem esta flag têm leitura liberada para
+   * qualquer profissional autenticado, porque são dados de referência
+   * consultados por outras telas (ex: a Agenda lê serviços/equipamentos). A
+   * ESCRITA (POST/PATCH/DELETE) sempre exige a permissão da tela.
+   */
+  readProtected?: boolean;
 }
 
 /**
@@ -51,13 +59,18 @@ export const SCREENS: readonly ScreenDef[] = [
     path: '/plans',
     dependsOn: [ScreenKey.PATIENTS, ScreenKey.SERVICES],
   },
-  { key: ScreenKey.FINANCE, label: 'Financeiro', path: '/finance' },
+  { key: ScreenKey.FINANCE, label: 'Financeiro', path: '/finance', readProtected: true },
   { key: ScreenKey.SERVICES, label: 'Serviços', path: '/services' },
   { key: ScreenKey.SCHEDULES, label: 'Horários', path: '/schedules' },
   { key: ScreenKey.EQUIPMENTS, label: 'Equipamentos', path: '/equipments' },
   { key: ScreenKey.PROFESSIONALS, label: 'Profissionais', path: '/professionals' },
-  { key: ScreenKey.IDFACE, label: 'iDFace', path: '/idface-devices' },
+  { key: ScreenKey.IDFACE, label: 'iDFace', path: '/idface-devices', readProtected: true },
 ];
+
+/** Telas cuja LEITURA também é restrita à permissão (não liberada por padrão). */
+export const READ_PROTECTED_SCREEN_KEYS: readonly ScreenKey[] = SCREENS.filter(
+  (s) => s.readProtected,
+).map((s) => s.key);
 
 /** Resolve a tela cujo `path` casa com um pathname do admin (match por prefixo). */
 export function screenForPath(pathname: string): ScreenDef | undefined {

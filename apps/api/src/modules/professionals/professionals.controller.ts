@@ -68,7 +68,7 @@ export class ProfessionalsController {
     return this.professionals.create(body);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
   @Get('professionals')
   @ApiOperation({ summary: 'Lista profissionais da unidade' })
   @ApiQuery({ name: 'includeInactive', required: false, type: Boolean })
