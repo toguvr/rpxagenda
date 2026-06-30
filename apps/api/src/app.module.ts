@@ -28,6 +28,7 @@ import { StorageModule } from './modules/storage/storage.module';
 import { EmailModule } from './modules/email/email.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
+import { ScreensGuard } from './modules/auth/guards/screens.guard';
 import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.interceptor';
 
 @Module({
@@ -69,6 +70,7 @@ import { UnitScopeInterceptor } from './modules/auth/interceptors/unit-scope.int
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ScreensGuard },
     { provide: APP_INTERCEPTOR, useClass: UnitScopeInterceptor },
   ],
 })

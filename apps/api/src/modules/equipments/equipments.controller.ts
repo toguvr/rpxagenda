@@ -28,8 +28,10 @@ import {
   type CreateEquipmentRequest,
   type SetServiceEquipmentsRequest,
   type UpdateEquipmentRequest,
+  ScreenKey,
 } from '@rpx/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Screen } from '../auth/decorators/screen.decorator';
 import { ZodValidationPipe } from '../auth/pipes/zod-validation.pipe';
 import { EquipmentsService } from './equipments.service';
 import {
@@ -41,6 +43,7 @@ import {
 
 @ApiTags('equipments')
 @ApiBearerAuth('access-token')
+@Screen(ScreenKey.EQUIPMENTS)
 @Controller()
 export class EquipmentsController {
   constructor(private readonly equipments: EquipmentsService) {}

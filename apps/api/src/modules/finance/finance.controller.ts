@@ -21,43 +21,59 @@ import {
 import {
   createExpenseRequestSchema,
   createPaymentRequestSchema,
+  createRecurringExpenseRequestSchema,
   financeSummaryQuerySchema,
   listExpensesQuerySchema,
   listPaymentsQuerySchema,
   updateExpenseRequestSchema,
   updatePaymentRequestSchema,
+  updateRecurringExpenseRequestSchema,
   UserRole,
   type CreateExpenseRequest,
   type CreatePaymentRequest,
+  type CreateRecurringExpenseRequest,
   type ExpenseResponse,
   type FinanceSummaryQuery,
   type FinanceSummaryResponse,
+  type GenerateRecurringExpenseResponse,
   type ListExpensesQuery,
   type ListPaymentsQuery,
   type PaymentResponse,
+  type RecurringExpenseResponse,
   type UpdateExpenseRequest,
   type UpdatePaymentRequest,
+  type UpdateRecurringExpenseRequest,
+  ScreenKey,
 } from '@rpx/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Screen } from '../auth/decorators/screen.decorator';
 import { ZodValidationPipe } from '../auth/pipes/zod-validation.pipe';
 import { FinanceService } from './finance.service';
+import { RecurringExpensesService } from './recurring-expenses.service';
 import {
   CreateExpenseDto,
   CreatePaymentDto,
+  CreateRecurringExpenseDto,
   ExpenseResponseDto,
   FinanceSummaryResponseDto,
   PaymentResponseDto,
+  RecurringExpenseResponseDto,
   UpdateExpenseDto,
   UpdatePaymentDto,
+  UpdateRecurringExpenseDto,
 } from './dto/finance.dto';
 
 /** Contexto financeiro — acesso restrito a ADMIN (CLAUDE.md §6). */
 @ApiTags('finance')
 @ApiBearerAuth('access-token')
 @Roles(UserRole.ADMIN)
+@Screen(ScreenKey.FINANCE)
 @Controller()
 export class FinanceController {
-  constructor(private readonly finance: FinanceService) {}
+  constructor(
+    private readonly finance: FinanceService,
+    private readonly recurring: RecurringExpensesService,
+  ) {}
 
   // ---------- Resumo ----------
 
@@ -164,10 +180,65 @@ export class FinanceController {
     return this.finance.deleteExpense(id);
   }
 
-  static _swaggerHints: [CreatePaymentDto, UpdatePaymentDto, CreateExpenseDto, UpdateExpenseDto] = [
+  // ---------- Gastos fixos (despesas recorrentes) ----------
+
+  @Post('recurring-expenses')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Cria um gasto fixo (despesa recorrente). Auditado.' })
+  @ApiCreatedResponse({ type: RecurringExpenseResponseDto })
+  createRecurring(
+    @Body(new ZodValidationPipe(createRecurringExpenseRequestSchema))
+    body: CreateRecurringExpenseRequest,
+  ): Promise<RecurringExpenseResponse> {
+    return this.recurring.create(body);
+  }
+
+  @Get('recurring-expenses')
+  @ApiOperation({ summary: 'Lista os gastos fixos da unidade.' })
+  @ApiOkResponse({ type: RecurringExpenseResponseDto, isArray: true })
+  listRecurring(): Promise<RecurringExpenseResponse[]> {
+    return this.recurring.findMany();
+  }
+
+  @Patch('recurring-expenses/:id')
+  @ApiOperation({ summary: 'Edita um gasto fixo. Auditado.' })
+  @ApiOkResponse({ type: RecurringExpenseResponseDto })
+  updateRecurring(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateRecurringExpenseRequestSchema))
+    body: UpdateRecurringExpenseRequest,
+  ): Promise<RecurringExpenseResponse> {
+    return this.recurring.update(id, body);
+  }
+
+  @Delete('recurring-expenses/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove um gasto fixo (despesas já geradas permanecem). Auditado.' })
+  @ApiNoContentResponse()
+  deleteRecurring(@Param('id') id: string): Promise<void> {
+    return this.recurring.remove(id);
+  }
+
+  @Post('recurring-expenses/:id/generate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Gera/recupera a despesa do mês corrente deste gasto fixo.' })
+  generateRecurring(@Param('id') id: string): Promise<GenerateRecurringExpenseResponse> {
+    return this.recurring.generateNow(id);
+  }
+
+  static _swaggerHints: [
+    CreatePaymentDto,
+    UpdatePaymentDto,
+    CreateExpenseDto,
+    UpdateExpenseDto,
+    CreateRecurringExpenseDto,
+    UpdateRecurringExpenseDto,
+  ] = [
     {} as CreatePaymentDto,
     {} as UpdatePaymentDto,
     {} as CreateExpenseDto,
     {} as UpdateExpenseDto,
+    {} as CreateRecurringExpenseDto,
+    {} as UpdateRecurringExpenseDto,
   ];
 }

@@ -26,6 +26,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (!user) {
       throw new UnauthorizedException('Usuário inexistente ou removido');
     }
-    return user;
+    // Permissões de tela vêm do token (assinado por nós). Alterações de telas
+    // concedidas passam a valer na próxima renovação do access token (≤15min).
+    return { ...user, permissions: payload.permissions ?? [] };
   }
 }

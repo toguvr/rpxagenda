@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { SCREENS } from '@rpx/shared';
 import { ApiError, login } from '@/lib/api';
 import { saveSession } from '@/lib/auth';
 
@@ -20,7 +21,12 @@ export default function LoginPage() {
     try {
       const res = await login(email, password);
       saveSession(res.accessToken, res.refreshToken, res.user);
-      router.replace('/dashboard');
+      // ADMIN cai no Painel; profissional vai para a primeira tela liberada.
+      const first =
+        res.user.role === 'ADMIN'
+          ? undefined
+          : SCREENS.find((s) => res.user.permissions.includes(s.key));
+      router.replace(res.user.role === 'ADMIN' ? '/dashboard' : (first?.path ?? '/dashboard'));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

@@ -17,8 +17,12 @@ export default function NewProfessionalPage() {
     setBusy(true);
     setError(null);
     try {
-      await api<ProfessionalResponse>('/professionals', { method: 'POST', body: values });
-      router.replace('/professionals');
+      const created = await api<ProfessionalResponse>('/professionals', {
+        method: 'POST',
+        body: values,
+      });
+      // Vai para a edição: lá o admin pode copiar/reenviar o link do convite.
+      router.replace(`/professionals/${created.id}/edit`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Falha ao criar profissional.');
     } finally {
@@ -34,7 +38,8 @@ export default function NewProfessionalPage() {
         </Link>
         <h1 className="text-2xl font-bold text-brand-black mt-1">Novo profissional</h1>
         <p className="text-sm text-neutral-500 mt-1">
-          Cria a conta de acesso (role PROFESSIONAL) junto com o cadastro.
+          Cadastra o profissional e envia um convite por e-mail para ele criar a própria senha de
+          acesso ao painel. Escolha abaixo as telas que ele poderá acessar.
         </p>
       </div>
       <Card title="Dados do profissional">

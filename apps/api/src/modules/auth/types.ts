@@ -10,6 +10,8 @@ export interface RequestUser {
   fullName: string;
   role: UserRole;
   unitId: string;
+  /** Telas do admin acessíveis (ver packages/shared SCREENS). ADMIN tem todas. */
+  permissions: string[];
 }
 
 export interface JwtAccessPayload {
@@ -18,4 +20,5 @@ export interface JwtAccessPayload {
   role: UserRole;
   unitId: string;
   fullName: string;
+  permissions: string[];
 }

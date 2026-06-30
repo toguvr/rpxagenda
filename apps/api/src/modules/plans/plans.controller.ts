@@ -26,8 +26,10 @@ import {
   type ListPlansQuery,
   type PlanResponse,
   type UpdatePlanStatusRequest,
+  ScreenKey,
 } from '@rpx/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Screen } from '../auth/decorators/screen.decorator';
 import { ZodValidationPipe } from '../auth/pipes/zod-validation.pipe';
 import { PlansService } from './plans.service';
 import {
@@ -39,6 +41,7 @@ import {
 
 @ApiTags('plans')
 @ApiBearerAuth('access-token')
+@Screen(ScreenKey.PLANS)
 @Controller()
 export class PlansController {
   constructor(private readonly plans: PlansService) {}

@@ -92,6 +92,44 @@ export class ExpenseResponseDto {
   @ApiProperty({ nullable: true }) description!: string | null;
   @ApiProperty({ nullable: true }) notes!: string | null;
   @ApiProperty({ nullable: true }) createdById!: string | null;
+  @ApiProperty({ nullable: true }) recurringExpenseId!: string | null;
+  @ApiProperty({ nullable: true }) period!: string | null;
+  @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date;
+  @ApiProperty({ type: String, format: 'date-time' }) updatedAt!: Date;
+}
+
+export class CreateRecurringExpenseDto {
+  @ApiProperty({ enum: EXPENSE_CATEGORIES }) category!: string;
+  @ApiProperty({ example: 350000, description: 'valor em centavos' }) amountCents!: number;
+  @ApiProperty({ minimum: 1, maximum: 28, description: 'dia do mês (1–28)' }) dayOfMonth!: number;
+  @ApiProperty({ default: false }) variableAmount?: boolean;
+  @ApiProperty({ default: true }) active?: boolean;
+  @ApiProperty({ required: false }) description?: string;
+  @ApiProperty({ required: false }) notes?: string;
+}
+
+export class UpdateRecurringExpenseDto {
+  @ApiProperty({ enum: EXPENSE_CATEGORIES, required: false }) category?: string;
+  @ApiProperty({ required: false }) amountCents?: number;
+  @ApiProperty({ required: false, minimum: 1, maximum: 28 }) dayOfMonth?: number;
+  @ApiProperty({ required: false }) variableAmount?: boolean;
+  @ApiProperty({ required: false }) active?: boolean;
+  @ApiProperty({ required: false }) description?: string;
+  @ApiProperty({ required: false }) notes?: string;
+}
+
+export class RecurringExpenseResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() unitId!: string;
+  @ApiProperty({ enum: EXPENSE_CATEGORIES }) category!: string;
+  @ApiProperty() amountCents!: number;
+  @ApiProperty() dayOfMonth!: number;
+  @ApiProperty() variableAmount!: boolean;
+  @ApiProperty() active!: boolean;
+  @ApiProperty({ nullable: true }) description!: string | null;
+  @ApiProperty({ nullable: true }) notes!: string | null;
+  @ApiProperty({ nullable: true }) lastGeneratedPeriod!: string | null;
+  @ApiProperty({ nullable: true }) createdById!: string | null;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ type: String, format: 'date-time' }) updatedAt!: Date;
 }
@@ -103,6 +141,7 @@ export class FinanceSummaryResponseDto {
   @ApiProperty() pendingCents!: number;
   @ApiProperty() overdueCents!: number;
   @ApiProperty() expensesCents!: number;
+  @ApiProperty() fixedMonthlyCents!: number;
   @ApiProperty() balanceCents!: number;
   @ApiProperty({ type: 'array', items: { type: 'object' } }) byMethod!: unknown[];
   @ApiProperty({ type: 'array', items: { type: 'object' } }) byExpenseCategory!: unknown[];

@@ -30,6 +30,11 @@ export const authenticatedUserSchema = z.object({
   fullName: z.string().min(1),
   role: z.nativeEnum(UserRole),
   unitId: cuidSchema,
+  /**
+   * Telas do admin que este usuário pode acessar. ADMIN recebe todas; o
+   * PROFESSIONAL recebe o subconjunto concedido no convite. PATIENT vem vazio.
+   */
+  permissions: z.array(z.string()).default([]),
 });
 export type AuthenticatedUser = z.infer<typeof authenticatedUserSchema>;
 

@@ -235,39 +235,50 @@ export class FinanceService {
       paidAt: { gte: from, lt: toExclusive },
     };
 
-    const [receivedAgg, pendingAgg, overdueAgg, expensesAgg, byMethodRows, byCategoryRows] =
-      await Promise.all([
-        this.prisma.payment.aggregate({
-          where: paidWindow,
-          _sum: { amountCents: true },
-          _count: true,
-        }),
-        this.prisma.payment.aggregate({
-          where: { unitId, status: 'PENDING' },
-          _sum: { amountCents: true },
-        }),
-        this.prisma.payment.aggregate({
-          where: { unitId, status: 'PENDING', dueAt: { lt: now } },
-          _sum: { amountCents: true },
-        }),
-        this.prisma.expense.aggregate({
-          where: { unitId, paidAt: { gte: from, lt: toExclusive } },
-          _sum: { amountCents: true },
-          _count: true,
-        }),
-        this.prisma.payment.groupBy({
-          by: ['method'],
-          where: paidWindow,
-          _sum: { amountCents: true },
-          _count: true,
-        }),
-        this.prisma.expense.groupBy({
-          by: ['category'],
-          where: { unitId, paidAt: { gte: from, lt: toExclusive } },
-          _sum: { amountCents: true },
-          _count: true,
-        }),
-      ]);
+    const [
+      receivedAgg,
+      pendingAgg,
+      overdueAgg,
+      expensesAgg,
+      byMethodRows,
+      byCategoryRows,
+      fixedAgg,
+    ] = await Promise.all([
+      this.prisma.payment.aggregate({
+        where: paidWindow,
+        _sum: { amountCents: true },
+        _count: true,
+      }),
+      this.prisma.payment.aggregate({
+        where: { unitId, status: 'PENDING' },
+        _sum: { amountCents: true },
+      }),
+      this.prisma.payment.aggregate({
+        where: { unitId, status: 'PENDING', dueAt: { lt: now } },
+        _sum: { amountCents: true },
+      }),
+      this.prisma.expense.aggregate({
+        where: { unitId, paidAt: { gte: from, lt: toExclusive } },
+        _sum: { amountCents: true },
+        _count: true,
+      }),
+      this.prisma.payment.groupBy({
+        by: ['method'],
+        where: paidWindow,
+        _sum: { amountCents: true },
+        _count: true,
+      }),
+      this.prisma.expense.groupBy({
+        by: ['category'],
+        where: { unitId, paidAt: { gte: from, lt: toExclusive } },
+        _sum: { amountCents: true },
+        _count: true,
+      }),
+      this.prisma.recurringExpense.aggregate({
+        where: { unitId, active: true },
+        _sum: { amountCents: true },
+      }),
+    ]);
 
     const receivedCents = receivedAgg._sum.amountCents ?? 0;
     const expensesCents = expensesAgg._sum.amountCents ?? 0;
@@ -279,6 +290,7 @@ export class FinanceService {
       pendingCents: pendingAgg._sum.amountCents ?? 0,
       overdueCents: overdueAgg._sum.amountCents ?? 0,
       expensesCents,
+      fixedMonthlyCents: fixedAgg._sum.amountCents ?? 0,
       balanceCents: receivedCents - expensesCents,
       byMethod: byMethodRows
         .map((r) => ({
@@ -344,6 +356,8 @@ export class FinanceService {
     description: string | null;
     notes: string | null;
     createdById: string | null;
+    recurringExpenseId: string | null;
+    period: string | null;
     createdAt: Date;
     updatedAt: Date;
   }): ExpenseResponse {
@@ -356,6 +370,8 @@ export class FinanceService {
       description: row.description,
       notes: row.notes,
       createdById: row.createdById,
+      recurringExpenseId: row.recurringExpenseId,
+      period: row.period,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

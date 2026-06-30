@@ -24,14 +24,17 @@ import {
   type CreateIdfaceDeviceRequest,
   type IdfaceDeviceResponse,
   type UpdateIdfaceDeviceRequest,
+  ScreenKey,
 } from '@rpx/shared';
 import { Roles } from '../../auth/decorators/roles.decorator';
+import { Screen } from '../../auth/decorators/screen.decorator';
 import { ZodValidationPipe } from '../../auth/pipes/zod-validation.pipe';
 import { IdfaceDevicesService } from './idface-devices.service';
 
 @ApiTags('integrations/idface')
 @ApiBearerAuth('access-token')
 @Roles(UserRole.ADMIN)
+@Screen(ScreenKey.IDFACE)
 @Controller('idface-devices')
 export class IdfaceDevicesController {
   constructor(private readonly devices: IdfaceDevicesService) {}

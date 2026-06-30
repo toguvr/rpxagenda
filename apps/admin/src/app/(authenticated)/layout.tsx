@@ -2,23 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import type { AuthenticatedUser } from '@rpx/shared';
+import { useEffect, useMemo, useState } from 'react';
+import { SCREENS, effectiveScreens, screenForPath, type AuthenticatedUser } from '@rpx/shared';
 import { getCurrentUser, isAuthenticated } from '@/lib/auth';
 import { logoutApi } from '@/lib/api';
-
-const NAV = [
-  { href: '/dashboard', label: 'Painel' },
-  { href: '/appointments', label: 'Agenda' },
-  { href: '/patients', label: 'Pacientes' },
-  { href: '/plans', label: 'Planos' },
-  { href: '/finance', label: 'Financeiro', adminOnly: true },
-  { href: '/services', label: 'Serviços' },
-  { href: '/schedules', label: 'Horários' },
-  { href: '/equipments', label: 'Equipamentos' },
-  { href: '/professionals', label: 'Profissionais' },
-  { href: '/idface-devices', label: 'iDFace', adminOnly: true },
-] as const;
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -35,6 +22,25 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
     setUser(getCurrentUser());
     setReady(true);
   }, [router]);
+
+  // Telas liberadas para este usuário (ADMIN = todas).
+  const allowed = useMemo(() => {
+    if (!user) return new Set<string>();
+    return new Set<string>(effectiveScreens(user.role, user.permissions));
+  }, [user]);
+
+  const nav = useMemo(() => SCREENS.filter((s) => allowed.has(s.key)), [allowed]);
+
+  // Guarda de rota: se a tela atual não está liberada, manda para a primeira
+  // tela permitida (ou deixa cair no estado "sem acesso" abaixo).
+  useEffect(() => {
+    if (!ready || !user || !pathname) return;
+    const screen = screenForPath(pathname);
+    if (screen && !allowed.has(screen.key)) {
+      const first = SCREENS.find((s) => allowed.has(s.key));
+      if (first) router.replace(first.path);
+    }
+  }, [ready, user, pathname, allowed, router]);
 
   // Fecha o drawer ao trocar de rota (mobile)
   useEffect(() => {
@@ -88,14 +94,12 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
           </button>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {NAV.filter(
-            (item) => !('adminOnly' in item && item.adminOnly) || user?.role === 'ADMIN',
-          ).map((item) => {
-            const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
+          {nav.map((item) => {
+            const active = pathname === item.path || pathname?.startsWith(`${item.path}/`);
             return (
               <Link
-                key={item.href}
-                href={item.href}
+                key={item.key}
+                href={item.path}
                 className={
                   'block rounded px-3 py-2 text-sm font-medium transition-colors ' +
                   (active
@@ -107,6 +111,11 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
               </Link>
             );
           })}
+          {nav.length === 0 && (
+            <p className="px-3 py-2 text-xs text-neutral-500">
+              Nenhuma tela liberada. Contate o administrador.
+            </p>
+          )}
         </nav>
         <div className="border-t border-neutral-800 p-3">
           <button

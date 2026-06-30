@@ -31,9 +31,11 @@ import {
   type ListAppointmentsQuery,
   type RecurringAppointmentsResponse,
   type RescheduleAppointmentRequest,
+  ScreenKey,
 } from '@rpx/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Screen } from '../auth/decorators/screen.decorator';
 import { ZodValidationPipe } from '../auth/pipes/zod-validation.pipe';
 import type { RequestUser } from '../auth/types';
 import { ResourceNotFoundException } from '../../common/exceptions/app.exception';
@@ -47,6 +49,7 @@ import {
 
 @ApiTags('appointments')
 @ApiBearerAuth('access-token')
+@Screen(ScreenKey.APPOINTMENTS)
 @Controller()
 export class AppointmentsController {
   constructor(

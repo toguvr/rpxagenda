@@ -102,10 +102,65 @@ export const expenseResponseSchema = z.object({
   description: z.string().nullable(),
   notes: z.string().nullable(),
   createdById: z.string().nullable(),
+  /** Preenchido quando a despesa veio de um gasto fixo (RecurringExpense). */
+  recurringExpenseId: z.string().nullable(),
+  /** Mês de competência (YYYY-MM) quando originada de um gasto fixo. */
+  period: z.string().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
 export type ExpenseResponse = z.infer<typeof expenseResponseSchema>;
+
+// ---------- Gastos fixos (despesas recorrentes) ----------
+
+const dayOfMonth = z
+  .number()
+  .int()
+  .min(1, 'Dia deve ser entre 1 e 28')
+  .max(28, 'Use no máximo 28 para valer em todos os meses');
+
+export const createRecurringExpenseRequestSchema = z.object({
+  category: z.nativeEnum(ExpenseCategory),
+  amountCents,
+  dayOfMonth,
+  /** Valor pode variar mês a mês (ex: conta de luz). Default false. */
+  variableAmount: z.boolean().default(false),
+  active: z.boolean().default(true),
+  description: z.string().trim().max(300).optional(),
+  notes: z.string().trim().max(2000).optional(),
+});
+export type CreateRecurringExpenseRequest = z.infer<typeof createRecurringExpenseRequestSchema>;
+
+export const updateRecurringExpenseRequestSchema = createRecurringExpenseRequestSchema.partial();
+export type UpdateRecurringExpenseRequest = z.infer<typeof updateRecurringExpenseRequestSchema>;
+
+export const recurringExpenseResponseSchema = z.object({
+  id: cuidSchema,
+  unitId: cuidSchema,
+  category: z.nativeEnum(ExpenseCategory),
+  amountCents: z.number().int(),
+  dayOfMonth: z.number().int(),
+  variableAmount: z.boolean(),
+  active: z.boolean(),
+  description: z.string().nullable(),
+  notes: z.string().nullable(),
+  lastGeneratedPeriod: z.string().nullable(),
+  createdById: z.string().nullable(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+export type RecurringExpenseResponse = z.infer<typeof recurringExpenseResponseSchema>;
+
+/** Resposta da geração manual da despesa do mês a partir de um gasto fixo. */
+export const generateRecurringExpenseResponseSchema = z.object({
+  /** `true` se criou a despesa agora; `false` se já existia para o período. */
+  created: z.boolean(),
+  period: z.string(),
+  expense: expenseResponseSchema,
+});
+export type GenerateRecurringExpenseResponse = z.infer<
+  typeof generateRecurringExpenseResponseSchema
+>;
 
 // ---------- Resumo financeiro ----------
 
@@ -127,6 +182,8 @@ export const financeSummaryResponseSchema = z.object({
   overdueCents: z.number().int(),
   /** Despesas no período (paidAt na janela). */
   expensesCents: z.number().int(),
+  /** Custo fixo mensal: soma dos gastos fixos ativos (informativo). */
+  fixedMonthlyCents: z.number().int(),
   /** Saldo do período = recebido − despesas. */
   balanceCents: z.number().int(),
   byMethod: z.array(

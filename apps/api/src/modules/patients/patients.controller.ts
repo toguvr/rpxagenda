@@ -36,9 +36,11 @@ import {
   type RedeemInviteRequest,
   type SavePatientPhotoRequest,
   type UpdatePatientRequest,
+  ScreenKey,
 } from '@rpx/shared';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Screen } from '../auth/decorators/screen.decorator';
 import { ZodValidationPipe } from '../auth/pipes/zod-validation.pipe';
 import { PatientsService } from './patients.service';
 import {
@@ -51,6 +53,7 @@ import {
 } from './dto/patient.dto';
 
 @ApiTags('patients')
+@Screen(ScreenKey.PATIENTS)
 @Controller()
 export class PatientsController {
   constructor(private readonly patients: PatientsService) {}

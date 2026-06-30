@@ -135,6 +135,7 @@ model Unit {
   medicalRecords     MedicalRecord[]
   payments           Payment[]
   expenses           Expense[]
+  recurringExpenses  RecurringExpense[]
 
   @@map("units")
 }
@@ -278,25 +279,51 @@ model ServiceEquipment {
 // ----- Pessoas -----
 
 model Professional {
-  id        String   @id @default(cuid())
-  unitId    String
-  userId    String   @unique
-  fullName  String
-  registry  String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id       String  @id @default(cuid())
+  unitId   String
+  // Null enquanto o convite não foi resgatado — a conta de acesso (User) só é
+  // criada quando o profissional define a própria senha pelo link do convite.
+  userId   String? @unique
+  // E-mail do convite/login. Persistido aqui porque o User só existe após o
+  // resgate; vira o email da conta criada no redeem.
+  email    String
+  fullName String
+  registry String
+  active   Boolean @default(true)
+  // Telas do admin que este profissional pode acessar (ver packages/shared SCREENS).
+  allowedScreens String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   unit           Unit                  @relation(fields: [unitId], references: [id])
-  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
   services       ProfessionalService[]
   appointments   Appointment[]
   protocols      Protocol[]
   medicalRecords MedicalRecord[]
+  invites        ProfessionalInvite[]
 
   @@unique([unitId, registry])
   @@index([unitId, active])
   @@map("professionals")
+}
+
+/// Convite de acesso do profissional ao painel admin. Espelha PatientInvite:
+/// guardamos apenas o hash do token; o token plain só trafega no link enviado.
+/// Idempotente por hash; expira em dias e é consumido (redeemedAt) no resgate.
+model ProfessionalInvite {
+  id             String    @id @default(cuid())
+  professionalId String
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  redeemedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@index([professionalId])
+  @@index([expiresAt])
+  @@map("professional_invites")
 }
 
 model ProfessionalService {
@@ -750,12 +777,46 @@ model Expense {
   description String?
   notes       String?
   createdById String?
+  // Origem: quando gerada a partir de um gasto fixo (RecurringExpense). `period`
+  // é o mês de competência (YYYY-MM); o par garante 1 geração por mês (idempotência).
+  recurringExpenseId String?
+  period             String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  unit Unit @relation(fields: [unitId], references: [id])
+  unit             Unit              @relation(fields: [unitId], references: [id])
+  recurringExpense RecurringExpense? @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
 
+  @@unique([recurringExpenseId, period])
   @@index([unitId, paidAt])
   @@index([unitId, category])
   @@map("expenses")
+}
+
+/// Gasto fixo (despesa recorrente): aluguel, salários, contas, software etc.
+/// Um job mensal materializa um Expense no `dayOfMonth` escolhido (idempotente
+/// por mês). `variableAmount` sinaliza gastos cujo valor muda (ex: luz) — o
+/// valor do template é usado como padrão e pode ser ajustado na despesa gerada.
+model RecurringExpense {
+  id            String          @id @default(cuid())
+  unitId        String
+  category      ExpenseCategory
+  amountCents   Int
+  /// Dia do mês (1–28) em que a despesa é lançada, no fuso da unidade.
+  dayOfMonth    Int
+  description   String?
+  notes         String?
+  variableAmount Boolean        @default(false)
+  active        Boolean         @default(true)
+  createdById   String?
+  /// Último mês de competência já materializado (YYYY-MM). Evita duplicar.
+  lastGeneratedPeriod String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  unit     Unit      @relation(fields: [unitId], references: [id])
+  expenses Expense[]
+
+  @@index([unitId, active])
+  @@map("recurring_expenses")
 }

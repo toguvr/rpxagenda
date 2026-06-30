@@ -11,8 +11,10 @@ import {
   UserRole,
   type ExpenseResponse,
   type FinanceSummaryResponse,
+  type GenerateRecurringExpenseResponse,
   type PatientResponse,
   type PaymentResponse,
+  type RecurringExpenseResponse,
   type ServiceResponse,
 } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
@@ -27,8 +29,9 @@ import {
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { RecordPaymentModal } from '@/components/RecordPaymentModal';
 import { CreateExpenseModal } from '@/components/CreateExpenseModal';
+import { RecurringExpenseModal } from '@/components/RecurringExpenseModal';
 
-type Tab = 'payments' | 'expenses';
+type Tab = 'payments' | 'expenses' | 'recurring';
 
 export default function FinancePage() {
   const router = useRouter();
@@ -40,6 +43,7 @@ export default function FinancePage() {
   const [summary, setSummary] = useState<FinanceSummaryResponse | null>(null);
   const [payments, setPayments] = useState<PaymentResponse[]>([]);
   const [expenses, setExpenses] = useState<ExpenseResponse[]>([]);
+  const [recurring, setRecurring] = useState<RecurringExpenseResponse[]>([]);
   const [patients, setPatients] = useState<PatientResponse[]>([]);
   const [services, setServices] = useState<Map<string, ServiceResponse>>(new Map());
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +51,8 @@ export default function FinancePage() {
   const [tab, setTab] = useState<Tab>('payments');
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [expModalOpen, setExpModalOpen] = useState(false);
+  const [recModalOpen, setRecModalOpen] = useState(false);
+  const [editingRec, setEditingRec] = useState<RecurringExpenseResponse | null>(null);
 
   // filtros das listas
   const [statusFilter, setStatusFilter] = useState('');
@@ -69,15 +75,17 @@ export default function FinancePage() {
     let cancelled = false;
     (async () => {
       try {
-        const [pays, exps, pats, svcs] = await Promise.all([
+        const [pays, exps, recs, pats, svcs] = await Promise.all([
           api<PaymentResponse[]>('/payments'),
           api<ExpenseResponse[]>('/expenses'),
+          api<RecurringExpenseResponse[]>('/recurring-expenses'),
           api<PatientResponse[]>('/patients'),
           api<ServiceResponse[]>('/services?includeInactive=true'),
         ]);
         if (cancelled) return;
         setPayments(pays);
         setExpenses(exps);
+        setRecurring(recs);
         setPatients(pats);
         setServices(new Map(svcs.map((s) => [s.id, s])));
       } catch (err) {
@@ -159,6 +167,49 @@ export default function FinancePage() {
     }
   }
 
+  function upsertRecurring(rec: RecurringExpenseResponse) {
+    setRecurring((prev) => {
+      const exists = prev.some((x) => x.id === rec.id);
+      return exists ? prev.map((x) => (x.id === rec.id ? rec : x)) : [rec, ...prev];
+    });
+    refreshAfterMutation();
+  }
+
+  async function deleteRecurring(rec: RecurringExpenseResponse) {
+    if (!confirm('Remover este gasto fixo? As despesas já geradas permanecem. Auditado.')) return;
+    try {
+      await api(`/recurring-expenses/${rec.id}`, { method: 'DELETE' });
+      setRecurring((prev) => prev.filter((x) => x.id !== rec.id));
+      await refreshAfterMutation();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Falha ao remover gasto fixo.');
+    }
+  }
+
+  async function generateRecurringNow(rec: RecurringExpenseResponse) {
+    try {
+      const res = await api<GenerateRecurringExpenseResponse>(
+        `/recurring-expenses/${rec.id}/generate`,
+        { method: 'POST' },
+      );
+      setExpenses((prev) => {
+        const exists = prev.some((x) => x.id === res.expense.id);
+        return exists ? prev : [res.expense, ...prev];
+      });
+      setRecurring((prev) =>
+        prev.map((x) => (x.id === rec.id ? { ...x, lastGeneratedPeriod: res.period } : x)),
+      );
+      await refreshAfterMutation();
+      alert(
+        res.created
+          ? `Despesa de ${res.period} gerada.`
+          : `A despesa de ${res.period} já existia (sem duplicar).`,
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Falha ao gerar despesa do mês.');
+    }
+  }
+
   if (allowed === null) {
     return <div className="text-neutral-400">Carregando…</div>;
   }
@@ -177,6 +228,15 @@ export default function FinancePage() {
           </button>
           <button onClick={() => setExpModalOpen(true)} className="btn-outline whitespace-nowrap">
             Lançar despesa
+          </button>
+          <button
+            onClick={() => {
+              setEditingRec(null);
+              setRecModalOpen(true);
+            }}
+            className="btn-outline whitespace-nowrap"
+          >
+            Novo gasto fixo
           </button>
         </div>
       </div>
@@ -205,11 +265,16 @@ export default function FinancePage() {
       )}
 
       {/* KPIs */}
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-6">
         <Kpi label="Recebido" value={formatCents(summary?.receivedCents)} tone="green" />
         <Kpi label="A receber" value={formatCents(summary?.pendingCents)} tone="yellow" />
         <Kpi label="Em atraso" value={formatCents(summary?.overdueCents)} tone="red" />
         <Kpi label="Despesas" value={formatCents(summary?.expensesCents)} tone="neutral" />
+        <Kpi
+          label="Custo fixo/mês"
+          value={formatCents(summary?.fixedMonthlyCents)}
+          tone="neutral"
+        />
         <Kpi
           label="Saldo"
           value={formatCents(summary?.balanceCents)}
@@ -224,6 +289,9 @@ export default function FinancePage() {
         </TabBtn>
         <TabBtn active={tab === 'expenses'} onClick={() => setTab('expenses')}>
           Despesas
+        </TabBtn>
+        <TabBtn active={tab === 'recurring'} onClick={() => setTab('recurring')}>
+          Gastos fixos
         </TabBtn>
       </div>
 
@@ -310,7 +378,7 @@ export default function FinancePage() {
             </div>
           )}
         </>
-      ) : (
+      ) : tab === 'expenses' ? (
         <>
           <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <SearchableSelect
@@ -345,12 +413,88 @@ export default function FinancePage() {
                     <tr key={e.id}>
                       <td>{formatDate(e.paidAt)}</td>
                       <td>{EXPENSE_CATEGORY_LABELS[e.category]}</td>
-                      <td className="text-neutral-600">{e.description ?? '—'}</td>
+                      <td className="text-neutral-600">
+                        {e.description ?? '—'}
+                        {e.recurringExpenseId && (
+                          <span className="ml-2 inline-block rounded-full bg-brand-cyanLight px-2 py-0.5 text-xs font-medium text-brand-cyanDark">
+                            fixo
+                          </span>
+                        )}
+                      </td>
                       <td className="text-right font-medium">{formatCents(e.amountCents)}</td>
                       <td>
                         <ActionBtn variant="danger" onClick={() => deleteExpense(e)}>
                           Remover
                         </ActionBtn>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {recurring.length === 0 ? (
+            <Empty>
+              Nenhum gasto fixo cadastrado. Use “Novo gasto fixo” para aluguel, salários, contas
+              etc. — a despesa de cada mês é lançada automaticamente.
+            </Empty>
+          ) : (
+            <div className="table-wrap">
+              <table className="table-base">
+                <thead>
+                  <tr>
+                    <th>Dia</th>
+                    <th>Categoria</th>
+                    <th>Descrição</th>
+                    <th>Situação</th>
+                    <th className="text-right">Valor</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recurring.map((r) => (
+                    <tr key={r.id}>
+                      <td>dia {r.dayOfMonth}</td>
+                      <td>{EXPENSE_CATEGORY_LABELS[r.category]}</td>
+                      <td className="text-neutral-600">
+                        {r.description ?? '—'}
+                        {r.variableAmount && (
+                          <span className="ml-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            valor variável
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span
+                          className={
+                            'inline-block text-xs px-2 py-0.5 rounded-full font-medium ' +
+                            (r.active
+                              ? 'bg-brand-cyanLight text-brand-cyanDark'
+                              : 'bg-neutral-100 text-neutral-500')
+                          }
+                        >
+                          {r.active ? 'Ativo' : 'Pausado'}
+                        </span>
+                      </td>
+                      <td className="text-right font-medium">{formatCents(r.amountCents)}</td>
+                      <td>
+                        <div className="flex gap-1.5">
+                          <ActionBtn onClick={() => generateRecurringNow(r)}>Gerar mês</ActionBtn>
+                          <ActionBtn
+                            onClick={() => {
+                              setEditingRec(r);
+                              setRecModalOpen(true);
+                            }}
+                          >
+                            Editar
+                          </ActionBtn>
+                          <ActionBtn variant="danger" onClick={() => deleteRecurring(r)}>
+                            Remover
+                          </ActionBtn>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -378,6 +522,12 @@ export default function FinancePage() {
           setExpenses((prev) => [e, ...prev]);
           refreshAfterMutation();
         }}
+      />
+      <RecurringExpenseModal
+        open={recModalOpen}
+        initial={editingRec}
+        onClose={() => setRecModalOpen(false)}
+        onSaved={upsertRecurring}
       />
     </div>
   );

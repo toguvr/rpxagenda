@@ -1,15 +1,15 @@
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
-import type { ProfessionalResponse, ServiceResponse } from '@rpx/shared';
+import { SCREENS, type ProfessionalResponse, type ServiceResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 
 export interface ProfessionalCreateValues {
   email: string;
-  password: string;
   fullName: string;
   registry: string;
   serviceIds: string[];
+  allowedScreens: string[];
   active: boolean;
 }
 
@@ -17,13 +17,15 @@ export interface ProfessionalUpdateValues {
   fullName: string;
   registry: string;
   serviceIds: string[];
+  allowedScreens: string[];
   active: boolean;
 }
 
 /**
- * Form de profissional. No modo `create` inclui email + senha (cria o User
- * PROFESSIONAL junto). No modo `edit` esses campos somem — email/senha não
- * são editáveis por aqui.
+ * Form de profissional. No modo `create` inclui o e-mail (para onde vai o
+ * convite de acesso — o profissional define a própria senha pelo link). A senha
+ * não é definida aqui. Em ambos os modos escolhe-se as telas que ele pode
+ * acessar no painel.
  */
 export function ProfessionalForm({
   mode,
@@ -40,12 +42,12 @@ export function ProfessionalForm({
   onUpdate?: (v: ProfessionalUpdateValues) => void;
   onCancel: () => void;
 }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(initial?.email ?? '');
   const [fullName, setFullName] = useState(initial?.fullName ?? '');
   const [registry, setRegistry] = useState(initial?.registry ?? '');
   const [active, setActive] = useState(initial?.active ?? true);
   const [serviceIds, setServiceIds] = useState<string[]>(initial?.serviceIds ?? []);
+  const [allowedScreens, setAllowedScreens] = useState<string[]>(initial?.allowedScreens ?? []);
 
   const [services, setServices] = useState<ServiceResponse[]>([]);
   const [servicesError, setServicesError] = useState<string | null>(null);
@@ -62,42 +64,43 @@ export function ProfessionalForm({
     setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
+  function toggleScreen(key: string) {
+    setAllowedScreens((prev) =>
+      prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key],
+    );
+  }
+
   function handle(e: FormEvent) {
     e.preventDefault();
     if (mode === 'create') {
-      onCreate?.({ email, password, fullName, registry, serviceIds, active });
+      onCreate?.({ email, fullName, registry, serviceIds, allowedScreens, active });
     } else {
-      onUpdate?.({ fullName, registry, serviceIds, active });
+      onUpdate?.({ fullName, registry, serviceIds, allowedScreens, active });
     }
   }
+
+  // Telas concedidas cujas dependências não foram marcadas (aviso amigável).
+  const missingDeps = SCREENS.filter(
+    (s) =>
+      allowedScreens.includes(s.key) &&
+      (s.dependsOn ?? []).some((dep) => !allowedScreens.includes(dep)),
+  );
 
   return (
     <form onSubmit={handle} className="space-y-4 max-w-lg">
       {mode === 'create' && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">E-mail *</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="input"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">
-              Senha inicial *
-            </label>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="input"
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-neutral-700 mb-1">E-mail *</label>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="input"
+          />
+          <p className="mt-1 text-xs text-neutral-500">
+            O convite para criar a senha de acesso será enviado para este e-mail.
+          </p>
         </div>
       )}
 
@@ -152,6 +155,49 @@ export function ProfessionalForm({
         )}
       </div>
 
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-neutral-700">
+            Telas que pode acessar no painel
+          </label>
+          <button
+            type="button"
+            onClick={() =>
+              setAllowedScreens(
+                allowedScreens.length === SCREENS.length ? [] : SCREENS.map((s) => s.key),
+              )
+            }
+            className="text-xs text-brand-cyanDark hover:underline"
+          >
+            {allowedScreens.length === SCREENS.length ? 'Limpar' : 'Selecionar todas'}
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+          {SCREENS.map((s) => (
+            <label key={s.key} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={allowedScreens.includes(s.key)}
+                onChange={() => toggleScreen(s.key)}
+                className="w-4 h-4 accent-brand-cyan"
+              />
+              {s.label}
+            </label>
+          ))}
+        </div>
+        {allowedScreens.length === 0 && (
+          <p className="mt-1 text-xs text-amber-600">
+            Sem nenhuma tela marcada, o profissional consegue logar mas não verá nenhuma página.
+          </p>
+        )}
+        {missingDeps.length > 0 && (
+          <p className="mt-1 text-xs text-amber-600">
+            {missingDeps.map((s) => s.label).join(', ')} costuma depender de outras telas (ex:
+            Pacientes e Serviços) para os campos de seleção funcionarem.
+          </p>
+        )}
+      </div>
+
       <div className="flex items-center gap-2">
         <input
           id="active"
@@ -170,7 +216,11 @@ export function ProfessionalForm({
           Cancelar
         </button>
         <button type="submit" disabled={busy} className="btn-primary">
-          {busy ? 'Salvando…' : mode === 'create' ? 'Cadastrar' : 'Salvar alterações'}
+          {busy
+            ? 'Salvando…'
+            : mode === 'create'
+              ? 'Cadastrar e enviar convite'
+              : 'Salvar alterações'}
         </button>
       </div>
     </form>

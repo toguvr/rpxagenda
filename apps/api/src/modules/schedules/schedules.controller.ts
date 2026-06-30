@@ -26,8 +26,10 @@ import {
   type CreateBusinessHoursRequest,
   type CreateScheduleExceptionRequest,
   type ScheduleExceptionResponse,
+  ScreenKey,
 } from '@rpx/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Screen } from '../auth/decorators/screen.decorator';
 import { ZodValidationPipe } from '../auth/pipes/zod-validation.pipe';
 import { SchedulesService } from './schedules.service';
 import {
@@ -41,6 +43,7 @@ import {
 
 @ApiTags('schedules')
 @ApiBearerAuth('access-token')
+@Screen(ScreenKey.SCHEDULES)
 @Controller()
 export class SchedulesController {
   constructor(private readonly schedules: SchedulesService) {}

@@ -11,7 +11,7 @@ import {
 } from '../../common/exceptions/app.exception';
 import { EMAIL_PROVIDER, type IEmailProvider } from '../email/email.types';
 import type { JwtAccessPayload, RequestUser } from './types';
-import type { LoginResponse } from '@rpx/shared';
+import { effectiveScreens, type LoginResponse } from '@rpx/shared';
 
 const REFRESH_TOKEN_BYTES = 48; // 384 bits
 const RESET_TOKEN_BYTES = 32;
@@ -193,12 +193,14 @@ export class AuthService {
     },
     tx: Pick<PrismaService, 'refreshToken'> = this.prisma,
   ): Promise<LoginResponse> {
+    const permissions = await this.resolvePermissions(user.id, user.role);
     const payload: JwtAccessPayload = {
       sub: user.id,
       email: user.email,
       fullName: user.fullName,
       role: user.role,
       unitId: user.unitId,
+      permissions,
     };
     const accessToken = await this.jwt.signAsync(payload, {
       secret: this.config.get('JWT_ACCESS_SECRET'),
@@ -225,8 +227,24 @@ export class AuthService {
         fullName: user.fullName,
         role: user.role,
         unitId: user.unitId,
+        permissions,
       },
     };
+  }
+
+  /**
+   * Telas que o usuário pode acessar no admin. ADMIN tem todas; PROFESSIONAL
+   * recebe o subconjunto concedido (Professional.allowedScreens); PATIENT vazio.
+   */
+  private async resolvePermissions(userId: string, role: RequestUser['role']): Promise<string[]> {
+    if (role === 'PROFESSIONAL') {
+      const prof = await this.prisma.professional.findUnique({
+        where: { userId },
+        select: { allowedScreens: true },
+      });
+      return effectiveScreens('PROFESSIONAL', prof?.allowedScreens ?? []);
+    }
+    return effectiveScreens(role);
   }
 
   private generateRefreshToken(): string {

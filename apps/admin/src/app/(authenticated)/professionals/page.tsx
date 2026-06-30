@@ -52,6 +52,7 @@ export default function ProfessionalsPage() {
                 <th>Registro</th>
                 <th>E-mail</th>
                 <th>Serviços</th>
+                <th>Acesso</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -69,6 +70,18 @@ export default function ProfessionalsPage() {
                   <td className="text-xs font-mono">{p.registry}</td>
                   <td className="text-neutral-500">{p.email}</td>
                   <td>{p.serviceIds.length}</td>
+                  <td>
+                    <span
+                      className={
+                        'inline-block text-xs px-2 py-0.5 rounded-full font-medium ' +
+                        (p.hasAccess
+                          ? 'bg-brand-cyanLight text-brand-cyanDark'
+                          : 'bg-amber-100 text-amber-700')
+                      }
+                    >
+                      {p.hasAccess ? 'Acesso ativo' : 'Convite pendente'}
+                    </span>
+                  </td>
                   <td>
                     <span
                       className={

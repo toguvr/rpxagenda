@@ -25,14 +25,17 @@ import {
   UserRole,
   type CreateServiceRequest,
   type UpdateServiceRequest,
+  ScreenKey,
 } from '@rpx/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Screen } from '../auth/decorators/screen.decorator';
 import { ZodValidationPipe } from '../auth/pipes/zod-validation.pipe';
 import { ServicesService } from './services.service';
 import { CreateServiceDto, ServiceResponseDto, UpdateServiceDto } from './dto/service.dto';
 
 @ApiTags('services')
 @ApiBearerAuth('access-token')
+@Screen(ScreenKey.SERVICES)
 @Controller('services')
 export class ServicesController {
   constructor(private readonly services: ServicesService) {}
