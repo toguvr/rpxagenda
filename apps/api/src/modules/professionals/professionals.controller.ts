@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import {
@@ -21,12 +22,18 @@ import {
 } from '@nestjs/swagger';
 import {
   createProfessionalRequestSchema,
+  photoUploadUrlRequestSchema,
   redeemProfessionalInviteRequestSchema,
+  savePatientPhotoRequestSchema,
   updateProfessionalRequestSchema,
   ScreenKey,
   UserRole,
   type CreateProfessionalRequest,
   type LoginResponse,
+  type PatientPhotoUrlResponse,
+  type PhotoUploadUrlRequest,
+  type PhotoUploadUrlResponse,
+  type SavePatientPhotoRequest,
   type ProfessionalInviteLookupResponse,
   type ProfessionalInviteResponse,
   type ProfessionalResponse,
@@ -106,6 +113,43 @@ export class ProfessionalsController {
   @ApiNoContentResponse()
   remove(@Param('id') id: string): Promise<void> {
     return this.professionals.remove(id);
+  }
+
+  // ---------- foto + biometria iDFace (libera o profissional no totem) ----------
+  // Os schemas de foto são os mesmos do paciente (contrato idêntico: contentType / key).
+
+  @Roles(UserRole.ADMIN)
+  @Post('professionals/:id/photo/upload-url')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Gera uma URL assinada (PUT) para subir a foto do profissional direto no S3.',
+  })
+  photoUploadUrl(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(photoUploadUrlRequestSchema)) body: PhotoUploadUrlRequest,
+  ): Promise<PhotoUploadUrlResponse> {
+    return this.professionals.getPhotoUploadUrl(id, body.contentType);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Put('professionals/:id/photo')
+  @ApiOperation({
+    summary:
+      'Confirma a foto após o upload e enfileira o cadastro facial no iDFace (acesso pelo totem).',
+  })
+  @ApiOkResponse({ type: ProfessionalResponseDto })
+  savePhoto(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(savePatientPhotoRequestSchema)) body: SavePatientPhotoRequest,
+  ): Promise<ProfessionalResponse> {
+    return this.professionals.savePhoto(id, body.key);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Get('professionals/:id/photo-url')
+  @ApiOperation({ summary: 'URL assinada (GET) da foto do profissional, ou null.' })
+  photoUrl(@Param('id') id: string): Promise<PatientPhotoUrlResponse> {
+    return this.professionals.getPhotoUrl(id);
   }
 
   // ---------- convites (admin gera; lookup/redeem são públicos) ----------

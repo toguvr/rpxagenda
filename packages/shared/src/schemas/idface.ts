@@ -7,6 +7,8 @@ export const IdfaceEventOutcome = {
   NO_APPOINTMENT_IN_WINDOW: 'NO_APPOINTMENT_IN_WINDOW',
   PATIENT_NOT_FOUND: 'PATIENT_NOT_FOUND',
   ALREADY_CHECKED_IN: 'ALREADY_CHECKED_IN',
+  /** Profissional ativo identificado no totem — liberado sem exigir agendamento. */
+  PROFESSIONAL_ACCESS: 'PROFESSIONAL_ACCESS',
 } as const;
 export type IdfaceEventOutcome = (typeof IdfaceEventOutcome)[keyof typeof IdfaceEventOutcome];
 
@@ -73,7 +75,9 @@ export type IdfaceEnrollmentStatus =
 export const idfaceEnrollmentResponseSchema = z.object({
   id: cuidSchema,
   unitId: cuidSchema,
-  patientId: cuidSchema,
+  /** Exatamente um entre `patientId` e `professionalId` é preenchido. */
+  patientId: cuidSchema.nullable(),
+  professionalId: cuidSchema.nullable(),
   assignedUserId: z.number().int(),
   status: z.nativeEnum(IdfaceEnrollmentStatus),
   registeredAt: z.coerce.date().nullable(),

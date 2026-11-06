@@ -6,14 +6,25 @@ import { ApiError, api } from '@/lib/api';
 
 type PhotoContentType = 'image/jpeg' | 'image/png' | 'image/webp';
 
+interface PersonPhotoProps {
+  /** Recurso dono da foto na API, ex: `/patients/abc` ou `/professionals/abc`. */
+  basePath: string;
+  /** Texto alternativo da imagem. */
+  alt: string;
+  /** Texto de apoio abaixo dos botões. */
+  hint: string;
+  /** Chamado após a foto ser salva (para a tela recarregar o status do iDFace). */
+  onSaved?: () => void;
+}
+
 /**
- * Captura/upload da foto do paciente. Fluxo presigned:
- *   1. POST /patients/:id/photo/upload-url  -> { key, uploadUrl }
+ * Captura/upload da foto de uma pessoa (paciente ou profissional). Fluxo presigned:
+ *   1. POST {basePath}/photo/upload-url  -> { key, uploadUrl }
  *   2. PUT direto no S3 (uploadUrl, sem auth da API)
- *   3. PUT /patients/:id/photo { key }      -> salva a key
+ *   3. PUT {basePath}/photo { key }      -> salva a key (e enfileira o cadastro no iDFace)
  *   4. recarrega a URL assinada de leitura
  */
-export function PatientPhoto({ patientId }: { patientId: string }) {
+export function PersonPhoto({ basePath, alt, hint, onSaved }: PersonPhotoProps) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [mode, setMode] = useState<'idle' | 'camera'>('idle');
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -26,12 +37,12 @@ export function PatientPhoto({ patientId }: { patientId: string }) {
 
   const loadPhoto = useCallback(async () => {
     try {
-      const { url } = await api<PatientPhotoUrlResponse>(`/patients/${patientId}/photo-url`);
+      const { url } = await api<PatientPhotoUrlResponse>(`${basePath}/photo-url`);
       setPhotoUrl(url);
     } catch {
       /* sem foto / sem storage: deixa o placeholder */
     }
-  }, [patientId]);
+  }, [basePath]);
 
   useEffect(() => {
     loadPhoto();
@@ -70,10 +81,10 @@ export function PatientPhoto({ patientId }: { patientId: string }) {
     setBusy(true);
     setError(null);
     try {
-      const { key, uploadUrl } = await api<PhotoUploadUrlResponse>(
-        `/patients/${patientId}/photo/upload-url`,
-        { method: 'POST', body: { contentType } },
-      );
+      const { key, uploadUrl } = await api<PhotoUploadUrlResponse>(`${basePath}/photo/upload-url`, {
+        method: 'POST',
+        body: { contentType },
+      });
       const put = await fetch(uploadUrl, {
         method: 'PUT',
         body: blob,
@@ -81,8 +92,9 @@ export function PatientPhoto({ patientId }: { patientId: string }) {
       });
       if (!put.ok)
         throw new Error('Falha ao enviar a imagem para o S3 (verifique o CORS do bucket).');
-      await api(`/patients/${patientId}/photo`, { method: 'PUT', body: { key } });
+      await api(`${basePath}/photo`, { method: 'PUT', body: { key } });
       await loadPhoto();
+      onSaved?.();
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -140,7 +152,7 @@ export function PatientPhoto({ patientId }: { patientId: string }) {
               className="h-full w-full object-cover"
             />
           ) : photoUrl ? (
-            <img src={photoUrl} alt="Foto do paciente" className="h-full w-full object-cover" />
+            <img src={photoUrl} alt={alt} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xs text-neutral-400">
               Sem foto
@@ -175,9 +187,7 @@ export function PatientPhoto({ patientId }: { patientId: string }) {
         </div>
       </div>
 
-      <p className="text-xs text-neutral-500">
-        A foto será cadastrada na biometria do iDFace (envio em etapa posterior).
-      </p>
+      <p className="text-xs text-neutral-500">{hint}</p>
 
       {error && (
         <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">

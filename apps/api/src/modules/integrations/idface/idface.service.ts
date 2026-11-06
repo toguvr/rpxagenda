@@ -64,6 +64,8 @@ export class IdfaceService {
     }
 
     // 3. Localiza o paciente pelo idfaceUserId DENTRO da unidade do device.
+    //    (Pacientes e profissionais dividem o mesmo contador de IDs por unidade,
+    //    então um ID nunca pertence aos dois.)
     const idfaceUserIdInt = Number.parseInt(payload.idfaceUserId, 10);
     const patient = Number.isFinite(idfaceUserIdInt)
       ? await this.prisma.patient.findFirst({
@@ -73,6 +75,28 @@ export class IdfaceService {
       : null;
 
     if (!patient) {
+      // 3b. Não é paciente — pode ser um profissional da unidade. Profissional
+      // ATIVO entra a qualquer hora, sem agendamento (decisão do stakeholder em
+      // 2026-11-06). Inativo ou removido cai no "não cadastrado" e é negado.
+      const professional = Number.isFinite(idfaceUserIdInt)
+        ? await this.prisma.professional.findFirst({
+            where: { unitId: device.unitId, idfaceUserId: idfaceUserIdInt, active: true },
+            select: { id: true },
+          })
+        : null;
+      if (professional) {
+        await this.saveEvent({
+          unitId: device.unitId,
+          payload,
+          accessGranted: true,
+          outcome: 'PROFESSIONAL_ACCESS',
+          patientId: null,
+          professionalId: professional.id,
+          appointmentId: null,
+        });
+        return this.buildResponse('PROFESSIONAL_ACCESS', true, null);
+      }
+
       await this.saveEvent({
         unitId: device.unitId,
         payload,
@@ -180,11 +204,11 @@ export class IdfaceService {
       const device = await this.devices.findByDeviceId(input.deviceId);
       const uid = Number.parseInt(input.userId, 10);
       if (device && Number.isFinite(uid)) {
-        const patient = await this.prisma.patient.findFirst({
-          where: { unitId: device.unitId, idfaceUserId: uid },
-          select: { fullName: true },
-        });
-        userName = patient?.fullName ?? '';
+        const where = { unitId: device.unitId, idfaceUserId: uid };
+        const person =
+          (await this.prisma.patient.findFirst({ where, select: { fullName: true } })) ??
+          (await this.prisma.professional.findFirst({ where, select: { fullName: true } }));
+        userName = person?.fullName ?? '';
       }
     }
 
@@ -209,6 +233,7 @@ export class IdfaceService {
     accessGranted: boolean;
     outcome: IdfaceEventOutcomeDb;
     patientId: string | null;
+    professionalId?: string | null;
     appointmentId: string | null;
   }): Promise<void> {
     try {
@@ -221,6 +246,7 @@ export class IdfaceService {
           accessGranted: input.accessGranted,
           outcome: input.outcome,
           patientId: input.patientId,
+          professionalId: input.professionalId ?? null,
           appointmentId: input.appointmentId,
           rawPayload: input.payload as Prisma.InputJsonValue,
         },
@@ -264,6 +290,8 @@ export class IdfaceService {
         return 'Nenhum agendamento válido para este horário.';
       case 'PATIENT_NOT_FOUND':
         return 'Paciente não cadastrado.';
+      case 'PROFESSIONAL_ACCESS':
+        return 'Acesso de profissional liberado.';
     }
   }
 }

@@ -24,7 +24,7 @@ import { CreatePlanModal } from '@/components/CreatePlanModal';
 import { CreateProtocolModal } from '@/components/CreateProtocolModal';
 import { RecurringScheduleModal } from '@/components/RecurringScheduleModal';
 import { MedicalRecordModal } from '@/components/MedicalRecordModal';
-import { PatientPhoto } from '@/components/PatientPhoto';
+import { PersonPhoto } from '@/components/PersonPhoto';
 
 type TabKey = 'plans' | 'protocols' | 'appointments' | 'records';
 
@@ -250,7 +250,11 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
       )}
 
       <Card title="Foto do paciente">
-        <PatientPhoto patientId={id} />
+        <PersonPhoto
+          basePath={`/patients/${id}`}
+          alt="Foto do paciente"
+          hint="A foto será cadastrada na biometria do iDFace (envio em etapa posterior)."
+        />
       </Card>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

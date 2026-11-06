@@ -1,12 +1,14 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { ProfessionalInviteResponse, ProfessionalResponse } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
 import { Card } from '@/components/Card';
 import { CopyButton } from '@/components/CopyButton';
+import { PersonPhoto } from '@/components/PersonPhoto';
+import { getCurrentUser } from '@/lib/auth';
 import { ProfessionalForm, type ProfessionalUpdateValues } from '@/components/ProfessionalForm';
 
 function redeemUrl(token: string): string {
@@ -24,14 +26,38 @@ export default function EditProfessionalPage({ params }: { params: Promise<{ id:
   const [invite, setInvite] = useState<ProfessionalInviteResponse | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteBusy, setInviteBusy] = useState(false);
+  // Foto/biometria é restrita a ADMIN na API (dá acesso físico à clínica).
+  const [isAdmin, setIsAdmin] = useState(false);
+  // Foto salva nesta visita: o totem ainda está processando o cadastro.
+  const [photoJustSaved, setPhotoJustSaved] = useState(false);
+
+  const loadProfessional = useCallback(
+    () =>
+      api<ProfessionalResponse>(`/professionals/${id}`)
+        .then(setProfessional)
+        .catch((err) =>
+          setLoadError(err instanceof ApiError ? err.message : 'Falha ao carregar profissional.'),
+        ),
+    [id],
+  );
 
   useEffect(() => {
-    api<ProfessionalResponse>(`/professionals/${id}`)
-      .then(setProfessional)
-      .catch((err) =>
-        setLoadError(err instanceof ApiError ? err.message : 'Falha ao carregar profissional.'),
-      );
-  }, [id]);
+    setIsAdmin(getCurrentUser()?.role === 'ADMIN');
+    loadProfessional();
+  }, [loadProfessional]);
+
+  // Após salvar a foto o totem leva alguns segundos para buscar e aplicar os
+  // comandos. Recarrega o status algumas vezes até o cadastro ser confirmado.
+  useEffect(() => {
+    if (!photoJustSaved || professional?.hasIdfaceEnrolled) return;
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts += 1;
+      loadProfessional();
+      if (attempts >= 12) clearInterval(timer);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [photoJustSaved, professional?.hasIdfaceEnrolled, loadProfessional]);
 
   async function handleUpdate(values: ProfessionalUpdateValues) {
     setBusy(true);
@@ -130,6 +156,45 @@ export default function EditProfessionalPage({ params }: { params: Promise<{ id:
           </div>
         )}
       </Card>
+
+      {isAdmin && (
+        <Card title="Acesso pelo totem (iDFace)">
+          <div className="space-y-3">
+            <p className="text-sm text-neutral-600">
+              {professional.hasIdfaceEnrolled ? (
+                <span className="mr-2 inline-block rounded-full bg-brand-cyanLight px-2 py-0.5 text-xs font-medium text-brand-cyanDark">
+                  Rosto cadastrado
+                </span>
+              ) : photoJustSaved ? (
+                <span className="mr-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  Enviando ao totem…
+                </span>
+              ) : (
+                <span className="mr-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  Sem cadastro facial
+                </span>
+              )}
+              {professional.hasIdfaceEnrolled
+                ? 'O totem libera a entrada deste profissional a qualquer hora, sem agendamento.'
+                : 'Enquanto o rosto não for cadastrado, o totem nega a entrada deste profissional.'}
+            </p>
+            {!professional.active && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                Profissional inativo: o totem nega a entrada mesmo com o rosto cadastrado.
+              </p>
+            )}
+            <PersonPhoto
+              basePath={`/professionals/${id}`}
+              alt="Foto do profissional"
+              hint="Use uma foto de frente, bem iluminada, só com o rosto do profissional. Ao salvar, ela é enviada ao totem em alguns segundos."
+              onSaved={() => {
+                setPhotoJustSaved(true);
+                loadProfessional();
+              }}
+            />
+          </div>
+        </Card>
+      )}
 
       <Card title="Dados do profissional">
         {error && (

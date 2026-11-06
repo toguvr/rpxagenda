@@ -131,6 +131,7 @@ Essa validação é **transacional** (Postgres advisory lock por `(unitId, servi
   5. Se não houver, registra evento como `ACCESS_DENIED` em `IdfaceEvent` e responde negando (resposta com flag de negação).
 - **Tolerância padrão:** 30min antes / 15min após o horário do agendamento — configurável por serviço.
 - **Idempotência:** webhook usa `(deviceId, timestamp, userId)` como chave única para evitar duplicidade.
+- **Profissionais no totem:** o admin cadastra o rosto do profissional pela tela de edição (foto → fila Push, mesmo ciclo do paciente). Profissional **ativo** com `Professional.idfaceUserId` é liberado **a qualquer hora, sem agendamento**; o evento é gravado com outcome `PROFESSIONAL_ACCESS`. Profissional inativo ou removido é negado. Pacientes e profissionais dividem o mesmo contador de IDs por unidade (`Unit.nextIdfaceUserId`), então um ID do equipamento nunca pertence aos dois.
 
 ### 4.7 Pagamentos (Pagar.me)
 
@@ -159,7 +160,8 @@ Patient {
 }
 Professional {
   id, userId, unitId,
-  fullName, registry (CREFITO/CREF), services: Service[]
+  fullName, registry (CREFITO/CREF), services: Service[],
+  photoKey?, idfaceUserId? // rosto cadastrado no iDFace → liberado no totem a qualquer hora
 }
 
 // Catálogo
@@ -230,7 +232,7 @@ Payment {
 
 // Integrações / auditoria
 IdfaceEvent {
-  id, patientId?, deviceId, eventAt, accessGranted,
+  id, patientId?, professionalId?, deviceId, eventAt, accessGranted,
   appointmentId?, rawPayload (jsonb)
 }
 AuditLog {

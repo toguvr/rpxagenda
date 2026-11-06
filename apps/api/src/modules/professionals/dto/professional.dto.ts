@@ -34,6 +34,9 @@ export class ProfessionalResponseDto {
   @ApiProperty({ type: String, isArray: true }) serviceIds!: string[];
   @ApiProperty({ type: String, isArray: true }) allowedScreens!: string[];
   @ApiProperty() hasAccess!: boolean;
+  @ApiProperty({ nullable: true }) photoKey!: string | null;
+  @ApiProperty({ description: 'Rosto já cadastrado no iDFace (libera o totem).' })
+  hasIdfaceEnrolled!: boolean;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ type: String, format: 'date-time' }) updatedAt!: Date;
 }

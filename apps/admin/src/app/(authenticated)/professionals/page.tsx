@@ -53,6 +53,7 @@ export default function ProfessionalsPage() {
                 <th>E-mail</th>
                 <th>Serviços</th>
                 <th>Acesso</th>
+                <th>Totem</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -80,6 +81,18 @@ export default function ProfessionalsPage() {
                       }
                     >
                       {p.hasAccess ? 'Acesso ativo' : 'Convite pendente'}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={
+                        'inline-block text-xs px-2 py-0.5 rounded-full font-medium ' +
+                        (p.hasIdfaceEnrolled
+                          ? 'bg-brand-cyanLight text-brand-cyanDark'
+                          : 'bg-amber-100 text-amber-700')
+                      }
+                    >
+                      {p.hasIdfaceEnrolled ? 'Rosto cadastrado' : 'Sem rosto'}
                     </span>
                   </td>
                   <td>

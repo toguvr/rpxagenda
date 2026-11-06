@@ -6,6 +6,7 @@ import { ClsService } from 'nestjs-cls';
 import type {
   CreateProfessionalRequest,
   LoginResponse,
+  PhotoUploadUrlResponse,
   ProfessionalInviteLookupResponse,
   ProfessionalInviteResponse,
   ProfessionalResponse,
@@ -15,6 +16,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CLS_KEYS } from '../../common/cls/cls-keys';
 import { TypedConfigService } from '../../config/typed-config.service';
 import { EMAIL_PROVIDER, type IEmailProvider } from '../email/email.types';
+import { STORAGE_PROVIDER, type IStorageProvider } from '../storage/storage.types';
+import { IdfaceEnrollmentsService } from '../integrations/idface/idface-enrollments.service';
 import { AuthService } from '../auth/auth.service';
 import {
   InviteInvalidException,
@@ -34,8 +37,66 @@ export class ProfessionalsService {
     private readonly config: TypedConfigService,
     private readonly auth: AuthService,
     private readonly cls: ClsService,
+    private readonly idfaceEnrollments: IdfaceEnrollmentsService,
+    @Inject(STORAGE_PROVIDER) private readonly storage: IStorageProvider,
     @Inject(EMAIL_PROVIDER) private readonly email: IEmailProvider,
   ) {}
+
+  // -------------- foto do profissional (S3 presigned) + biometria iDFace --------------
+
+  /** Gera a object key + URL assinada de upload (PUT direto no S3). */
+  async getPhotoUploadUrl(id: string, contentType: string): Promise<PhotoUploadUrlResponse> {
+    await this.findById(id);
+    const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg';
+    const key = `professionals/${id}/${crypto.randomUUID()}.${ext}`;
+    const uploadUrl = await this.storage.presignUpload(key, contentType);
+    return { key, uploadUrl };
+  }
+
+  /**
+   * Confirma a foto após o upload: valida a key, persiste em `photoKey` e
+   * dispara o cadastro facial no iDFace — é o que libera o profissional no
+   * totem. Best-effort: falha ao enfileirar não desfaz o save da foto.
+   */
+  async savePhoto(id: string, key: string): Promise<ProfessionalResponse> {
+    const before = await this.findById(id);
+    if (!key.startsWith(`professionals/${id}/`)) {
+      throw new ResourceConflictException('A key informada não pertence a este profissional.');
+    }
+    const row = await this.prisma.scoped.professional.update({
+      where: { id },
+      data: { photoKey: key },
+      include: { services: true },
+    });
+    // Salvar a foto dispara o cadastro facial, que dá acesso físico à clínica —
+    // operação sensível (CLAUDE.md §2.3), então fica auditada.
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: this.cls.get<string>(CLS_KEYS.USER_ID) ?? null,
+        action: 'PROFESSIONAL_FACE_ENROLLMENT_REQUESTED',
+        entity: 'Professional',
+        entityId: id,
+        before: { photoKey: before.photoKey, hasIdfaceEnrolled: before.hasIdfaceEnrolled },
+        after: { photoKey: key },
+      },
+    });
+    try {
+      await this.idfaceEnrollments.enqueueProfessionalEnrollment(id);
+    } catch (err) {
+      this.logger.warn(
+        { professionalId: id, err: err instanceof Error ? err.message : String(err) },
+        'Falha ao enfileirar enrollment iDFace do profissional (foto foi salva mesmo assim).',
+      );
+    }
+    return this.toResponse(row);
+  }
+
+  /** URL assinada de leitura da foto, ou null se não houver. */
+  async getPhotoUrl(id: string): Promise<{ url: string | null }> {
+    const professional = await this.findById(id);
+    if (!professional.photoKey) return { url: null };
+    return { url: await this.storage.presignDownload(professional.photoKey) };
+  }
 
   /**
    * Cadastra o profissional SEM conta de acesso e dispara o convite por e-mail
@@ -356,6 +417,8 @@ export class ProfessionalsService {
     registry: string;
     active: boolean;
     allowedScreens: string[];
+    photoKey: string | null;
+    idfaceUserId: number | null;
     createdAt: Date;
     updatedAt: Date;
     services: { serviceId: string }[];
@@ -371,6 +434,8 @@ export class ProfessionalsService {
       serviceIds: row.services.map((s) => s.serviceId),
       allowedScreens: row.allowedScreens,
       hasAccess: row.userId !== null,
+      photoKey: row.photoKey,
+      hasIdfaceEnrolled: row.idfaceUserId !== null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

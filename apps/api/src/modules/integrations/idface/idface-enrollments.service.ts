@@ -11,9 +11,31 @@ interface CommandPayload {
   contentType: string;
 }
 
+/** Dono do enrollment: exatamente um entre paciente e profissional. */
+type EnrollmentOwner =
+  | { patientId: string; professionalId: null }
+  | { patientId: null; professionalId: string };
+
+/** Dados da pessoa que vão para o equipamento (`users.name` / `users.registration`). */
+interface DevicePerson {
+  fullName: string;
+  /** CPF do paciente ou registro (CREFITO/CREF) do profissional. */
+  registration: string;
+}
+
+/** Enrollment com o dono carregado — o suficiente para montar o próximo comando. */
+const ENROLLMENT_WITH_OWNER = {
+  patient: { select: { fullName: true, cpf: true } },
+  professional: { select: { fullName: true, registry: true } },
+} satisfies Prisma.IdfaceEnrollmentInclude;
+type EnrollmentWithOwner = Prisma.IdfaceEnrollmentGetPayload<{
+  include: typeof ENROLLMENT_WITH_OWNER;
+}>;
+
 /**
- * Gerencia o ciclo de cadastro do paciente no iDFace via Push:
- * 1. Admin salva foto → `enqueueEnrollment` é chamado.
+ * Gerencia o ciclo de cadastro de uma pessoa (paciente ou profissional) no
+ * iDFace via Push:
+ * 1. Admin salva foto → `enqueueEnrollment` / `enqueueProfessionalEnrollment`.
  * 2. Comandos vão sendo entregues ao device via /push (FIFO por unidade).
  * 3. Cada result do device avança a sequência:
  *      DESTROY (opcional) → CREATE_USER → SET_IMAGE → enrollment REGISTERED.
@@ -35,7 +57,8 @@ export class IdfaceEnrollmentsService {
   /**
    * Inicia um ciclo de enrollment para o paciente. Chamado pelo `patients.service`
    * após a foto ser salva. Reusa o `idfaceUserId` do paciente se houver
-   * (re-enroll); senão, gera um novo `user_id` atômico via `Unit.nextIdfaceUserId`.
+   * (re-enroll, começa removendo o cadastro anterior do device); senão, gera um
+   * novo `user_id` atômico via `Unit.nextIdfaceUserId`.
    */
   async enqueueEnrollment(patientId: string): Promise<void> {
     const patient = await this.prisma.patient.findUnique({
@@ -55,25 +78,71 @@ export class IdfaceEnrollmentsService {
       return;
     }
 
-    const reusedUserId = patient.idfaceUserId;
-    const assignedUserId = reusedUserId ?? (await this.allocateUserId(patient.unitId));
+    await this.startEnrollment({
+      unitId: patient.unitId,
+      owner: { patientId: patient.id, professionalId: null },
+      person: { fullName: patient.fullName, registration: patient.cpf },
+      photoKey: patient.photoKey,
+      currentUserId: patient.idfaceUserId,
+    });
+  }
+
+  /**
+   * Mesmo ciclo de `enqueueEnrollment`, para o profissional. O `user_id` sai do
+   * MESMO contador da unidade usado pelos pacientes, então os IDs nunca colidem
+   * no equipamento. Chamado pelo `professionals.service` após a foto ser salva.
+   */
+  async enqueueProfessionalEnrollment(professionalId: string): Promise<void> {
+    const professional = await this.prisma.professional.findUnique({
+      where: { id: professionalId },
+      select: {
+        id: true,
+        unitId: true,
+        fullName: true,
+        registry: true,
+        photoKey: true,
+        idfaceUserId: true,
+      },
+    });
+    if (!professional) throw new Error(`Profissional ${professionalId} não encontrado.`);
+    if (!professional.photoKey) {
+      this.logger.warn({ professionalId }, 'Enrollment ignorado — profissional sem photoKey.');
+      return;
+    }
+
+    await this.startEnrollment({
+      unitId: professional.unitId,
+      owner: { patientId: null, professionalId: professional.id },
+      person: { fullName: professional.fullName, registration: professional.registry },
+      photoKey: professional.photoKey,
+      currentUserId: professional.idfaceUserId,
+    });
+  }
+
+  /** Cria o enrollment e enfileira o primeiro comando da sequência. */
+  private async startEnrollment(input: {
+    unitId: string;
+    owner: EnrollmentOwner;
+    person: DevicePerson;
+    photoKey: string;
+    /** `idfaceUserId` atual da pessoa (re-enroll) ou null (primeiro cadastro). */
+    currentUserId: number | null;
+  }): Promise<void> {
+    const assignedUserId = input.currentUserId ?? (await this.allocateUserId(input.unitId));
 
     const enrollment = await this.prisma.idfaceEnrollment.create({
       data: {
-        unitId: patient.unitId,
-        patientId: patient.id,
-        photoKey: patient.photoKey,
+        unitId: input.unitId,
+        ...input.owner,
+        photoKey: input.photoKey,
         assignedUserId,
         status: 'PENDING',
       },
     });
 
     // Re-enroll: começa pelo DESTROY. Cadastro novo: vai direto para CREATE_USER.
-    if (reusedUserId !== null) {
-      await this.enqueueCommand(enrollment, patient, 'DESTROY', assignedUserId);
-    } else {
-      await this.enqueueCommand(enrollment, patient, 'CREATE_USER', assignedUserId);
-    }
+    const firstStep: IdfaceCommandStep = input.currentUserId !== null ? 'DESTROY' : 'CREATE_USER';
+    await this.enqueueCommand(enrollment, input.person, firstStep, assignedUserId);
   }
 
   /**
@@ -189,45 +258,41 @@ export class IdfaceEnrollmentsService {
   private async advanceAfterSuccess(cmd: IdfaceCommand): Promise<void> {
     const enrollment = await this.prisma.idfaceEnrollment.findUnique({
       where: { id: cmd.enrollmentId },
-      include: {
-        patient: { select: { id: true, fullName: true, cpf: true, photoKey: true } },
-      },
+      include: ENROLLMENT_WITH_OWNER,
     });
     if (!enrollment) return;
+    const person = this.personOf(enrollment);
 
     switch (cmd.step) {
       case 'DESTROY':
-        await this.enqueueCommand(
-          enrollment,
-          enrollment.patient,
-          'CREATE_USER',
-          enrollment.assignedUserId,
-        );
+        await this.enqueueCommand(enrollment, person, 'CREATE_USER', enrollment.assignedUserId);
         return;
       case 'CREATE_USER':
-        await this.enqueueCommand(
-          enrollment,
-          enrollment.patient,
-          'SET_IMAGE',
-          enrollment.assignedUserId,
-        );
+        await this.enqueueCommand(enrollment, person, 'SET_IMAGE', enrollment.assignedUserId);
         return;
       case 'SET_IMAGE':
-        // Sequência completa — marca enrollment REGISTERED e atualiza Patient.idfaceUserId.
+        // Sequência completa — marca enrollment REGISTERED e grava o idfaceUserId
+        // no dono (paciente ou profissional). É a partir daqui que o totem o reconhece.
         await this.prisma.$transaction([
           this.prisma.idfaceEnrollment.update({
             where: { id: enrollment.id },
             data: { status: 'REGISTERED', registeredAt: new Date(), lastError: null },
           }),
-          this.prisma.patient.update({
-            where: { id: enrollment.patientId },
-            data: { idfaceUserId: enrollment.assignedUserId },
-          }),
+          enrollment.professionalId !== null
+            ? this.prisma.professional.update({
+                where: { id: enrollment.professionalId },
+                data: { idfaceUserId: enrollment.assignedUserId },
+              })
+            : this.prisma.patient.update({
+                where: { id: this.requirePatientId(enrollment) },
+                data: { idfaceUserId: enrollment.assignedUserId },
+              }),
         ]);
         this.logger.log(
           {
             enrollmentId: enrollment.id,
             patientId: enrollment.patientId,
+            professionalId: enrollment.professionalId,
             assignedUserId: enrollment.assignedUserId,
           },
           'Enrollment iDFace concluído.',
@@ -237,7 +302,7 @@ export class IdfaceEnrollmentsService {
   }
 
   /**
-   * DESTROY falhando = paciente provavelmente nem existia no device. Não é
+   * DESTROY falhando = a pessoa provavelmente nem existia no device. Não é
    * fatal: avança a sequência mesmo assim. Para CREATE_USER/SET_IMAGE, falha
    * marca o enrollment como FAILED.
    */
@@ -246,14 +311,12 @@ export class IdfaceEnrollmentsService {
       this.logger.warn({ uuid: cmd.uuid, error }, 'DESTROY falhou — seguindo para CREATE_USER.');
       const enrollment = await this.prisma.idfaceEnrollment.findUnique({
         where: { id: cmd.enrollmentId },
-        include: {
-          patient: { select: { id: true, fullName: true, cpf: true, photoKey: true } },
-        },
+        include: ENROLLMENT_WITH_OWNER,
       });
       if (!enrollment) return;
       await this.enqueueCommand(
         enrollment,
-        enrollment.patient,
+        this.personOf(enrollment),
         'CREATE_USER',
         enrollment.assignedUserId,
       );
@@ -267,18 +330,47 @@ export class IdfaceEnrollmentsService {
 
   // ---------- helpers ----------
 
+  /** Nome + matrícula que o equipamento recebe, conforme o dono do enrollment. */
+  private personOf(enrollment: EnrollmentWithOwner): DevicePerson {
+    if (enrollment.professional) {
+      return {
+        fullName: enrollment.professional.fullName,
+        registration: enrollment.professional.registry,
+      };
+    }
+    if (enrollment.patient) {
+      return { fullName: enrollment.patient.fullName, registration: enrollment.patient.cpf };
+    }
+    // Inalcançável: o CHECK `idface_enrollments_owner_check` garante um dono.
+    throw new Error(`Enrollment ${enrollment.id} sem paciente nem profissional.`);
+  }
+
+  private requirePatientId(enrollment: { id: string; patientId: string | null }): string {
+    if (enrollment.patientId === null) {
+      throw new Error(`Enrollment ${enrollment.id} sem paciente nem profissional.`);
+    }
+    return enrollment.patientId;
+  }
+
   private async enqueueCommand(
-    enrollment: { id: string; unitId: string; patientId: string; photoKey: string },
-    patient: { fullName: string; cpf: string },
+    enrollment: {
+      id: string;
+      unitId: string;
+      patientId: string | null;
+      professionalId: string | null;
+      photoKey: string;
+    },
+    person: DevicePerson,
     step: IdfaceCommandStep,
     userId: number,
   ): Promise<void> {
-    const payload = await this.buildPayload(step, userId, patient, enrollment.photoKey);
+    const payload = await this.buildPayload(step, userId, person, enrollment.photoKey);
     await this.prisma.idfaceCommand.create({
       data: {
         unitId: enrollment.unitId,
         enrollmentId: enrollment.id,
         patientId: enrollment.patientId,
+        professionalId: enrollment.professionalId,
         step,
         payload: payload as unknown as Prisma.InputJsonValue,
         uuid: crypto.randomUUID(),
@@ -290,7 +382,7 @@ export class IdfaceEnrollmentsService {
   private async buildPayload(
     step: IdfaceCommandStep,
     userId: number,
-    patient: { fullName: string; cpf: string },
+    person: DevicePerson,
     photoKey: string,
   ): Promise<CommandPayload> {
     switch (step) {
@@ -309,7 +401,7 @@ export class IdfaceEnrollmentsService {
           endpoint: 'create_objects',
           body: {
             object: 'users',
-            values: [{ id: userId, name: patient.fullName, registration: patient.cpf }],
+            values: [{ id: userId, name: person.fullName, registration: person.registration }],
           },
           contentType: 'application/json',
         };

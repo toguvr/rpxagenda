@@ -38,6 +38,10 @@ export const professionalResponseSchema = z.object({
   allowedScreens: z.array(z.string()),
   /** `true` quando já existe conta de acesso (convite resgatado). */
   hasAccess: z.boolean(),
+  /** Object key da foto no storage (null se ainda não enviada). */
+  photoKey: z.string().nullable(),
+  /** `true` quando o rosto já está cadastrado no iDFace (libera o totem). */
+  hasIdfaceEnrolled: z.boolean(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });

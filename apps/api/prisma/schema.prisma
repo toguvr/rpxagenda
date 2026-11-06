@@ -59,6 +59,8 @@ enum IdfaceEventOutcome {
   NO_APPOINTMENT_IN_WINDOW
   PATIENT_NOT_FOUND
   ALREADY_CHECKED_IN
+  /// Profissional ativo identificado no totem — liberado sem exigir agendamento.
+  PROFESSIONAL_ACCESS
 }
 
 enum IdfaceEnrollmentStatus {
@@ -292,18 +294,27 @@ model Professional {
   active   Boolean @default(true)
   // Telas do admin que este profissional pode acessar (ver packages/shared SCREENS).
   allowedScreens String[] @default([])
+  // Chave (object key) da foto do profissional no bucket S3 (usada na biometria do iDFace).
+  photoKey       String?
+  /// ID do profissional no equipamento iDFace. Sai do MESMO contador dos pacientes
+  /// (`Unit.nextIdfaceUserId`), então nunca colide com `Patient.idfaceUserId`.
+  idfaceUserId   Int?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  unit           Unit                  @relation(fields: [unitId], references: [id])
-  user           User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
-  services       ProfessionalService[]
-  appointments   Appointment[]
-  protocols      Protocol[]
-  medicalRecords MedicalRecord[]
-  invites        ProfessionalInvite[]
+  unit              Unit                  @relation(fields: [unitId], references: [id])
+  user              User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  services          ProfessionalService[]
+  appointments      Appointment[]
+  protocols         Protocol[]
+  medicalRecords    MedicalRecord[]
+  invites           ProfessionalInvite[]
+  idfaceEvents      IdfaceEvent[]
+  idfaceEnrollments IdfaceEnrollment[]
+  idfaceCommands    IdfaceCommand[]
 
   @@unique([unitId, registry])
+  @@unique([unitId, idfaceUserId])
   @@index([unitId, active])
   @@map("professionals")
 }
@@ -562,17 +573,21 @@ model IdfaceEvent {
   accessGranted  Boolean
   outcome        IdfaceEventOutcome
   patientId      String?
+  /// Preenchido quando quem passou no totem é um profissional (outcome PROFESSIONAL_ACCESS).
+  professionalId String?
   appointmentId  String?
   rawPayload     Json
   createdAt      DateTime            @default(now())
 
-  unit        Unit         @relation(fields: [unitId], references: [id])
-  patient     Patient?     @relation(fields: [patientId], references: [id])
-  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  unit         Unit          @relation(fields: [unitId], references: [id])
+  patient      Patient?      @relation(fields: [patientId], references: [id])
+  professional Professional? @relation(fields: [professionalId], references: [id], onDelete: SetNull)
+  appointment  Appointment?  @relation(fields: [appointmentId], references: [id])
 
   @@unique([deviceId, eventAt, idfaceUserId])
   @@index([unitId, eventAt])
   @@index([patientId])
+  @@index([professionalId])
   @@map("idface_events")
 }
 
@@ -596,12 +611,15 @@ model IdfaceDevice {
   @@map("idface_devices")
 }
 
-/// Ciclo de cadastro de um paciente no iDFace. Criado quando o admin salva a
-/// foto; vai a REGISTERED quando o device confirma o último comando da fila.
+/// Ciclo de cadastro de uma pessoa (paciente OU profissional) no iDFace. Criado
+/// quando o admin salva a foto; vai a REGISTERED quando o device confirma o
+/// último comando da fila. Exatamente um entre `patientId` e `professionalId`
+/// é preenchido (garantido por CHECK no banco).
 model IdfaceEnrollment {
   id             String                 @id @default(cuid())
   unitId         String
-  patientId      String
+  patientId      String?
+  professionalId String?
   /// Snapshot da photoKey no instante do enrollment (para auditoria / re-enroll).
   photoKey       String
   /// `user_id` (int64) que mandamos no iDFace. Único por unidade.
@@ -613,12 +631,14 @@ model IdfaceEnrollment {
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
 
-  unit     Unit            @relation(fields: [unitId], references: [id])
-  patient  Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  commands IdfaceCommand[]
+  unit         Unit            @relation(fields: [unitId], references: [id])
+  patient      Patient?        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  professional Professional?   @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  commands     IdfaceCommand[]
 
   @@index([unitId, status])
   @@index([patientId])
+  @@index([professionalId])
   @@map("idface_enrollments")
 }
 
@@ -629,7 +649,9 @@ model IdfaceCommand {
   id            String              @id @default(cuid())
   unitId        String
   enrollmentId  String
-  patientId     String
+  /// Mesmo dono do enrollment: exatamente um entre paciente e profissional.
+  patientId     String?
+  professionalId String?
   step          IdfaceCommandStep
   /// Snapshot do comando como o device receberá (verb, endpoint, body, contentType).
   /// Inclui imagem em base64 no caso de SET_IMAGE.
@@ -650,9 +672,10 @@ model IdfaceCommand {
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
-  unit       Unit             @relation(fields: [unitId], references: [id])
-  enrollment IdfaceEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  patient    Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  unit         Unit             @relation(fields: [unitId], references: [id])
+  enrollment   IdfaceEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  patient      Patient?         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  professional Professional?    @relation(fields: [professionalId], references: [id], onDelete: Cascade)
 
   @@index([unitId, status, createdAt])
   @@index([enrollmentId])
