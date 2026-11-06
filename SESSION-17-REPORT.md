@@ -1,7 +1,7 @@
 # Sessão 17 — Acesso de profissionais pelo totem iDFace
 
 Data: 2026-11-06
-Branch: `master` (alterações locais, **não commitadas e não deployadas**)
+Branch: `master` (commit `12dcb16`). **Em produção desde 2026-11-06**: API Lightsail v34 (imagem `api.74`) com a migration aplicada; admin publicado pelo Netlify.
 Escopo: profissionais recebiam "não autorizado" no totem de reconhecimento facial. Diagnóstico da causa e implementação do cadastro facial + liberação de profissionais.
 
 ---
@@ -61,11 +61,18 @@ Migration: `20261106160000_professional_idface_access`. Apenas aditiva (colunas 
 
 `apps/api/.env` aponta para o banco de **produção**, e os specs `*.integration.spec.ts` executam `deleteMany({})` em pacientes, agendamentos, planos, profissionais etc. Rodar `pnpm test` (ou `jest` sem filtro) com esse `.env` apaga os dados de produção. Nesta sessão só foram rodados specs que não tocam o banco (`--testPathIgnorePatterns integration.spec.ts`).
 
-## 7. Próximos passos
+## 7. Deploy (2026-11-06)
 
-1. Deploy: `./deploy/deploy.sh --migrate` (aplica a migration e sobe a API). Publicar o admin.
-2. No admin, abrir cada profissional → "Acesso pelo totem (iDFace)" → enviar a foto. Em alguns segundos o status vira "Rosto cadastrado".
-3. Remover do equipamento os usuários órfãos `2` e `1004`.
-4. Apontar os testes de integração para um banco próprio (ex: `.env.test` + guarda que recusa rodar contra host de produção).
+- `./deploy/deploy.sh --migrate`: migration aplicada no RDS, deploy v34 ACTIVE. Conferido depois: schema em dia, dados existentes intactos, endpoints novos respondendo, totem em keepalive, zero erros ou 5xx no log da API.
+- Admin: push em `master` → build do Netlify. Conferido que as páginas publicadas trazem o card "Acesso pelo totem (iDFace)" e a coluna "Totem", e que o login renderiza em navegador headless.
+- Observação: o admin responde **HTTP 500 no HTML inicial de todas as rotas** (SSR falha com `Cannot read properties of null (reading 'useContext')`, reproduzível com `next build && next start` local) e o navegador recupera renderizando no cliente. Atinge rotas que esta sessão não tocou (`/privacidade`, `/favicon.ico`); a causa aparente é o alias de `react` no `next.config.ts`. Não foi corrigido aqui.
+- Nenhum profissional tem rosto cadastrado ainda: até cadastrarem pelo admin, o totem continua negando.
+
+## 8. Próximos passos
+
+1. No admin, abrir cada profissional → "Acesso pelo totem (iDFace)" → enviar a foto. Em alguns segundos o status vira "Rosto cadastrado".
+2. Remover do equipamento os usuários cadastrados direto nele (IDs `2`, `3`, `5`, `7` e o órfão `1004`): o sistema não os conhece e eles seguem negados.
+3. Apontar os testes de integração para um banco próprio (ex: `.env.test` + guarda que recusa rodar contra host de produção).
+4. Investigar o 500 de SSR do admin.
 5. Consertar `patients.invite.spec.ts`.
 6. Opcional: comando de remoção do rosto no equipamento ao desativar/remover profissional (fecha a premissa da seção 4).
