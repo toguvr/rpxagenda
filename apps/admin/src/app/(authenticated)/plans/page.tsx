@@ -4,14 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   PlanStatus,
-  UserRole,
+  ScreenKey,
   type PatientResponse,
   type PlanResponse,
   type PlanStatus as PlanStatusType,
   type ServiceResponse,
 } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
-import { getCurrentUser } from '@/lib/auth';
+import { canWriteScreen } from '@/lib/auth';
 import { formatCents } from '@/lib/money';
 import { Modal } from '@/components/Modal';
 import { CreatePlanModal } from '@/components/CreatePlanModal';
@@ -47,7 +47,7 @@ export default function PlansPage() {
   const [patients, setPatients] = useState<Map<string, PatientResponse>>(new Map());
   const [services, setServices] = useState<Map<string, ServiceResponse>>(new Map());
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [canManage, setCanManage] = useState(false);
 
   // filtros
   const [statusFilter, setStatusFilter] = useState('');
@@ -68,7 +68,7 @@ export default function PlansPage() {
   const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
-    setIsAdmin(getCurrentUser()?.role === UserRole.ADMIN);
+    setCanManage(canWriteScreen(ScreenKey.PLANS));
   }, []);
 
   useEffect(() => {
@@ -153,7 +153,7 @@ export default function PlansPage() {
               : 'Carregando…'}
           </p>
         </div>
-        {isAdmin && (
+        {canManage && (
           <button onClick={() => setCreateOpen(true)} className="btn-primary whitespace-nowrap">
             Novo plano
           </button>
@@ -220,7 +220,7 @@ export default function PlansPage() {
                 <th>Valor</th>
                 <th>Saldo / Quota</th>
                 <th>Validade</th>
-                {isAdmin && <th>Ações</th>}
+                {canManage && <th>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -260,7 +260,7 @@ export default function PlansPage() {
                         : `${p.weeklyUsage ?? 0} / ${p.weeklyQuota ?? '—'} por semana`}
                     </td>
                     <td>{p.type === 'PACKAGE' && p.validUntil ? formatDate(p.validUntil) : '—'}</td>
-                    {isAdmin && (
+                    {canManage && (
                       <td>
                         {FINAL_STATUSES.has(p.status) ? (
                           <span className="text-xs text-neutral-400">—</span>

@@ -14,9 +14,9 @@ import type {
   ProtocolResponse,
   ServiceResponse,
 } from '@rpx/shared';
-import { UserRole } from '@rpx/shared';
+import { ScreenKey, UserRole } from '@rpx/shared';
 import { ApiError, api } from '@/lib/api';
-import { getCurrentUser } from '@/lib/auth';
+import { canWriteScreen, getCurrentUser } from '@/lib/auth';
 import { Card } from '@/components/Card';
 import { Modal } from '@/components/Modal';
 import { CopyButton } from '@/components/CopyButton';
@@ -83,12 +83,14 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canManagePlans, setCanManagePlans] = useState(false);
   const [adminRef, setAdminRef] = useState('');
   const [savingRef, setSavingRef] = useState(false);
   const [refMsg, setRefMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setIsAdmin(getCurrentUser()?.role === UserRole.ADMIN);
+    setCanManagePlans(canWriteScreen(ScreenKey.PLANS));
   }, []);
 
   // Vindo de "Registrar avaliação" no agendamento: abre o modal de protocolo
@@ -372,7 +374,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             Agendamentos ({appointments?.length ?? 0})
           </TabButton>
         </nav>
-        {tab === 'plans' && (
+        {tab === 'plans' && canManagePlans && (
           <button
             onClick={() => setCreatePlanOpen(true)}
             className="text-sm font-medium text-brand-cyanDark hover:underline mb-1"
@@ -402,7 +404,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
-      {tab === 'plans' && (
+      {tab === 'plans' && canManagePlans && (
         <PlansList plans={plans} services={serviceMap} onSchedule={setRecurringPlan} />
       )}
       {tab === 'protocols' && (

@@ -46,7 +46,9 @@ import {
 export class PlansController {
   constructor(private readonly plans: PlansService) {}
 
-  @Roles(UserRole.ADMIN)
+  // Profissional precisa da tela "Planos" concedida — o ScreensGuard bloqueia
+  // escrita sem a permissão. ADMIN passa sempre.
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
   @Post('plans')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -102,7 +104,7 @@ export class PlansController {
     return this.plans.findById(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
   @Patch('plans/:id/status')
   @ApiOperation({
     summary:

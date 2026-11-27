@@ -1,6 +1,6 @@
 'use client';
 
-import type { AuthenticatedUser } from '@rpx/shared';
+import { effectiveScreens, type AuthenticatedUser, type ScreenKey } from '@rpx/shared';
 
 /**
  * Armazenamento de tokens — `localStorage` por agora.
@@ -51,4 +51,14 @@ export function clearSession() {
 
 export function isAuthenticated(): boolean {
   return !!getAccessToken();
+}
+
+/**
+ * O usuário logado pode escrever (criar/editar) na tela? Espelha o ScreensGuard
+ * da API: ADMIN sempre; PROFESSIONAL só com a tela concedida.
+ */
+export function canWriteScreen(screen: ScreenKey): boolean {
+  const user = getCurrentUser();
+  if (!user) return false;
+  return effectiveScreens(user.role, user.permissions).includes(screen);
 }
