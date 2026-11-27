@@ -1,0 +1,116 @@
+# Deploy da API (apps/api) para o AWS Lightsail Container Service "rpx-api".
+#
+# Equivalente ao ./deploy/deploy.sh, mas roda no GitHub (dá para disparar pelo
+# celular: aba Actions → "Deploy API" → Run workflow).
+#
+# Diferença em relação ao script local: NÃO usa deploy/containers.json. As
+# variáveis de ambiente (segredos de produção) são lidas do deployment que
+# está no ar no Lightsail e reaproveitadas; só a imagem é trocada. Assim os
+# segredos da API continuam só no Lightsail.
+#
+# Secrets necessários no repositório (Settings → Secrets and variables → Actions):
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY — usuário IAM com permissão de Lightsail
+# Variável opcional:
+#   AWS_REGION — região do container service (default us-east-1)
+#
+# PREMISSA: o container service fica em us-east-1 (mesma região de S3/SES no
+# containers.example.json). Se não for, criar a variável AWS_REGION.
+
+name: Deploy API
+
+on:
+  workflow_dispatch:
+    inputs:
+      migrate:
+        description: 'Rodar prisma migrate deploy antes (banco de produção)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  SERVICE: rpx-api
+  LABEL: api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Credenciais AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Instala lightsailctl (plugin do push-container-image)
+        run: |
+          sudo curl -fsSL "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl" \
+            -o /usr/local/bin/lightsailctl
+          sudo chmod +x /usr/local/bin/lightsailctl
+
+      - name: Lê a configuração do deployment atual
+        run: |
+          aws lightsail get-container-services --service-name "$SERVICE" \
+            --query 'containerServices[0].currentDeployment.containers' --output json \
+            > "$RUNNER_TEMP/containers.json"
+          # Mascara os valores de ambiente no log (segredos de produção).
+          jq -r '.[].environment // {} | .[]' "$RUNNER_TEMP/containers.json" | while IFS= read -r v; do
+            [ -n "$v" ] && echo "::add-mask::$v"
+          done
+          if [ "$(jq -r '.api.image // empty' "$RUNNER_TEMP/containers.json")" = "" ]; then
+            echo "::error::Deployment atual sem container 'api' — faça o primeiro deploy pelo deploy/deploy.sh."
+            exit 1
+          fi
+          echo "Imagem atual: $(jq -r '.api.image' "$RUNNER_TEMP/containers.json")"
+
+      - name: Migrations (opcional)
+        if: ${{ inputs.migrate }}
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile --filter @rpx/api...
+          DATABASE_URL="$(jq -r '.api.environment.DATABASE_URL' "$RUNNER_TEMP/containers.json")" \
+            pnpm --filter @rpx/api exec prisma migrate deploy
+
+      - name: Build da imagem
+        run: docker build --platform linux/amd64 -f apps/api/Dockerfile -t "$SERVICE:latest" .
+
+      - name: Push para o Lightsail
+        run: |
+          OUT="$(aws lightsail push-container-image --service-name "$SERVICE" --label "$LABEL" --image "$SERVICE:latest" 2>&1)"
+          echo "$OUT"
+          IMG="$(echo "$OUT" | grep -o ":$SERVICE.$LABEL.[0-9]*" | tail -1)"
+          if [ -z "$IMG" ]; then
+            echo "::error::Não consegui extrair a referência da imagem do output do push."
+            exit 1
+          fi
+          echo "IMG=$IMG" >> "$GITHUB_ENV"
+
+      - name: Dispara o deployment e espera ACTIVE
+        run: |
+          jq --arg img "$IMG" '.api.image = $img' "$RUNNER_TEMP/containers.json" > "$RUNNER_TEMP/next.json"
+          VER="$(aws lightsail create-container-service-deployment \
+            --service-name "$SERVICE" \
+            --containers "file://$RUNNER_TEMP/next.json" \
+            --public-endpoint file://deploy/endpoint.json \
+            --query 'containerService.nextDeployment.version' --output text)"
+          echo "Versão $VER em deploy ($IMG). Aguardando ACTIVE…"
+          for i in $(seq 1 40); do
+            STATE="$(aws lightsail get-container-service-deployments --service-name "$SERVICE" \
+              --query 'deployments[0].state' --output text 2>/dev/null || echo '?')"
+            case "$STATE" in
+              ACTIVE) echo "✓ Deploy v$VER ACTIVE — $IMG no ar."; exit 0 ;;
+              FAILED) echo "::error::Deploy v$VER FAILED. Logs: aws lightsail get-container-log --service-name $SERVICE --container-name api"; exit 1 ;;
+              *) printf '  [%2d/40] estado=%s\n' "$i" "$STATE"; sleep 15 ;;
+            esac
+          done
+          echo "::error::Timeout esperando ACTIVE (o deploy pode ainda concluir; cheque o console)."
+          exit 1
