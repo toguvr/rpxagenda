@@ -84,6 +84,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [canManagePlans, setCanManagePlans] = useState(false);
+  const [canManagePatients, setCanManagePatients] = useState(false);
   const [adminRef, setAdminRef] = useState('');
   const [savingRef, setSavingRef] = useState(false);
   const [refMsg, setRefMsg] = useState<string | null>(null);
@@ -91,6 +92,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     setIsAdmin(getCurrentUser()?.role === UserRole.ADMIN);
     setCanManagePlans(canWriteScreen(ScreenKey.PLANS));
+    setCanManagePatients(canWriteScreen(ScreenKey.PATIENTS));
   }, []);
 
   // Vindo de "Registrar avaliação" no agendamento: abre o modal de protocolo
@@ -232,7 +234,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {!patient.hasUserAccount && (
+          {!patient.hasUserAccount && canManagePatients && (
             <button
               onClick={handleGenerateInvite}
               disabled={inviteLoading || !patient.email}

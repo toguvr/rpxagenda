@@ -156,10 +156,12 @@ export class PatientsController {
     return this.patients.getMyPhotoUrl();
   }
 
-  // ---------- invites (admin gera; redemption é pública) ----------
+  // ---------- invites (admin/profissional com a tela Pacientes gera; redemption é pública) ----------
 
+  // Profissional precisa da tela "Pacientes" concedida (ScreensGuard bloqueia a
+  // escrita sem a permissão). ADMIN passa sempre.
   @ApiBearerAuth('access-token')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.PROFESSIONAL)
   @Post('patients/:id/invites')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
