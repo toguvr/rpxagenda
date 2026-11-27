@@ -1,7 +1,13 @@
 # Deploy da API (apps/api) para o AWS Lightsail Container Service "rpx-api".
 #
-# Equivalente ao ./deploy/deploy.sh, mas roda no GitHub (dá para disparar pelo
-# celular: aba Actions → "Deploy API" → Run workflow).
+# Equivalente ao ./deploy/deploy.sh, mas roda no GitHub. Dispara sozinho a cada
+# push em `master` que toque a API (ou em algo de que ela dependa) e também
+# manualmente (aba Actions → "Deploy API" → Run workflow, dá pelo celular).
+#
+# Migrations: `prisma migrate deploy` roda SEMPRE antes do deploy. É idempotente
+# (só aplica o que está pendente) e a convenção do projeto é migration aditiva,
+# então a API que já está no ar continua funcionando com o schema novo enquanto
+# a versão nova sobe. Se a migration falhar, nada é publicado.
 #
 # Diferença em relação ao script local: NÃO usa deploy/containers.json. As
 # variáveis de ambiente (segredos de produção) são lidas do deployment que
@@ -9,7 +15,9 @@
 # segredos da API continuam só no Lightsail.
 #
 # Secrets necessários no repositório (Settings → Secrets and variables → Actions):
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY — usuário IAM com permissão de Lightsail
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY — usuário IAM `rpx-github-actions`,
+#   que só tem as permissões de Lightsail usadas aqui (ler o serviço, registrar
+#   imagem, criar deployment). Não use a chave de administrador.
 # Variável opcional:
 #   AWS_REGION — região do container service (default us-east-1)
 #
@@ -19,12 +27,19 @@
 name: Deploy API
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - 'apps/api/**'
+      - 'packages/shared/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.npmrc'
+      - 'tsconfig.base.json'
+      - 'deploy/endpoint.json'
+      - '.github/workflows/deploy-api.yml'
   workflow_dispatch:
-    inputs:
-      migrate:
-        description: 'Rodar prisma migrate deploy antes (banco de produção)'
-        type: boolean
-        default: false
 
 concurrency:
   group: deploy-api
@@ -43,6 +58,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: Credenciais AWS
         uses: aws-actions/configure-aws-credentials@v4
@@ -72,16 +91,15 @@ jobs:
           fi
           echo "Imagem atual: $(jq -r '.api.image' "$RUNNER_TEMP/containers.json")"
 
-      - name: Migrations (opcional)
-        if: ${{ inputs.migrate }}
+      - name: Build da imagem
+        run: docker build --platform linux/amd64 -f apps/api/Dockerfile -t "$SERVICE:latest" .
+
+      - name: Migrations (prisma migrate deploy no banco de produção)
         run: |
           corepack enable
           pnpm install --frozen-lockfile --filter @rpx/api...
           DATABASE_URL="$(jq -r '.api.environment.DATABASE_URL' "$RUNNER_TEMP/containers.json")" \
             pnpm --filter @rpx/api exec prisma migrate deploy
-
-      - name: Build da imagem
-        run: docker build --platform linux/amd64 -f apps/api/Dockerfile -t "$SERVICE:latest" .
 
       - name: Push para o Lightsail
         run: |
